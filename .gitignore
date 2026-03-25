@@ -1,0 +1,48 @@
+## OS / Editor
+.DS_Store
+.idea/
+.vscode/
+
+## Node / Electron
+**/node_modules/
+**/npm-debug.log
+**/yarn.lock
+**/pnpm-lock.yaml
+
+## Env files
+**/.env
+**/.env.*
+
+## SQLite / data
+**/*.sqlite
+**/*.sqlite3
+**/data/
+
+## Flutter / Dart
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/build/
+**/.metadata
+**/coverage/
+**/pubspec.lock
+
+## Platform generated (Flutter)
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/App.framework
+**/ios/Runner.xcworkspace/
+**/ios/Runner.xcodeproj/project.xcworkspace/
+**/ios/Runner.xcodeproj/xcuserdata/
+**/macos/Pods/
+**/macos/Flutter/ephemeral/
+**/macos/Runner.xcworkspace/
+**/macos/Runner.xcodeproj/project.xcworkspace/
+**/macos/Runner.xcodeproj/xcuserdata/
+**/android/.gradle/
+**/android/**/build/
+**/android/local.properties
+

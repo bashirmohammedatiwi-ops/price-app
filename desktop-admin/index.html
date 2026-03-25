@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>إدارة الأسعار - استيراد Excel</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <div class="brand-dot"></div>
+          <div class="brand-title">سعر - إدارة الأسعار</div>
+        </div>
+        <div class="topbar-badge" id="mappingStatusBadge">جاهز لاستيراد Excel بمطابقة أعمدة</div>
+      </div>
+    </div>
+
+    <div class="app">
+      <h1 class="hero-title">استيراد Excel ذكي</h1>
+
+      <div class="stepper">
+        <div class="step active" data-step="1"><span>1</span> المصدر</div>
+        <div class="step" data-step="2"><span>2</span> المعاينة</div>
+        <div class="step" data-step="3"><span>3</span> Mapping</div>
+        <div class="step" data-step="4"><span>4</span> النتيجة</div>
+      </div>
+
+      <section class="card">
+        <h2>1) المصدر والملف</h2>
+        <div class="row">
+          <label>المصدر</label>
+          <div class="source-controls">
+            <select id="sourcePreset">
+              <option value="">قوالب جاهزة...</option>
+              <option value="company">الشركة</option>
+              <option value="dubai">دبي</option>
+              <option value="market">السوق</option>
+            </select>
+            <select id="templateSelect">
+              <option value="">قالب: (اختياري)</option>
+            </select>
+            <input id="sourceName" type="text" placeholder="مثال: dubai" />
+          </div>
+        </div>
+
+        <div class="row">
+          <label>ملف Excel</label>
+          <input id="fileInput" type="file" accept=".xlsx,.xls" />
+        </div>
+
+        <div class="row">
+          <label>الورقة (Sheet)</label>
+          <select id="sheetSelect" disabled></select>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>2) المعاينة</h2>
+        <div id="previewWrap" class="preview-wrap">
+          <div id="previewMeta" class="preview-meta">قم برفع ملف Excel للمعاينة.</div>
+          <div id="previewTableWrap"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>3) ربط الأعمدة (Mapping)</h2>
+
+        <div class="row">
+          <label>الباركود (مطلوب)</label>
+          <select id="mapBarcode"></select>
+        </div>
+
+        <div class="row">
+          <label>اسم المنتج (اختياري)</label>
+          <select id="mapName"></select>
+        </div>
+
+        <div class="row">
+          <label>السعر (مطلوب)</label>
+          <select id="mapPrice"></select>
+        </div>
+
+        <div class="row">
+          <label>حقول إضافية (ديناميكية)</label>
+          <div class="extra-fields">
+            <div id="extraFields"></div>
+          </div>
+        </div>
+
+        <div class="row extra-add">
+          <input id="customFieldKey" type="text" placeholder="أضف مفتاح حقل (مثال: brand_uam)" />
+          <button id="addCustomFieldBtn" type="button">إضافة حقل</button>
+        </div>
+
+        <div class="row actions">
+          <button id="loadTemplateBtn" type="button">تحميل القالب</button>
+          <button id="saveTemplateBtn" type="button">حفظ القالب</button>
+          <button id="importBtn" type="button" class="primary">استيراد</button>
+        </div>
+      </section>
+
+      <section class="card" id="cardImportResult">
+        <h2>4) النتيجة</h2>
+        <pre id="result" class="result">---</pre>
+      </section>
+    </div>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>
+
