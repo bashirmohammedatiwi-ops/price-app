@@ -78,7 +78,6 @@ const state = {
   scannerBusy: false,
   lastScan: '',
   lastScanAt: 0,
-  focusRefreshTimer: null,
 };
 
 function pickBestBackCamera(cameras) {
@@ -216,26 +215,17 @@ async function startScannerInternal() {
 
 async function tuneCameraForBarcode() {
   if (!state.scanner) return;
+  if (isIOS) return;
   try {
     const capabilities = state.scanner.getRunningTrackCapabilities?.() || {};
     const constraints = {};
-
-    // Prefer continuous autofocus when available.
-    if (capabilities.focusMode && Array.isArray(capabilities.focusMode)) {
-      if (capabilities.focusMode.includes('continuous')) constraints.focusMode = 'continuous';
-      else if (capabilities.focusMode.includes('auto')) constraints.focusMode = 'auto';
-    }
 
     // A slight zoom-in usually improves 1D barcode readability.
     if (typeof capabilities.zoom === 'object' && capabilities.zoom) {
       const min = Number(capabilities.zoom.min ?? 1);
       const max = Number(capabilities.zoom.max ?? 1);
-      const targetZoom = isIOS ? 2.0 : 1.5;
+      const targetZoom = 1.5;
       if (max > min) constraints.zoom = Math.min(max, Math.max(min, targetZoom));
-    }
-
-    if (capabilities.pointsOfInterest) {
-      constraints.advanced = [{ pointsOfInterest: [{ x: 0.5, y: 0.5 }] }];
     }
 
     if (Object.keys(constraints).length) {
@@ -330,10 +320,6 @@ async function searchProduct(barcodeRaw) {
 async function stopScanner() {
   if (!state.scanner || !state.scannerRunning || state.scannerBusy) return;
   state.scannerBusy = true;
-  if (state.focusRefreshTimer) {
-    clearInterval(state.focusRefreshTimer);
-    state.focusRefreshTimer = null;
-  }
   try {
     await state.scanner.stop();
   } catch (_) {
@@ -355,12 +341,6 @@ async function startScanner() {
     await startScannerInternal();
     state.scannerRunning = true;
     await tuneCameraForBarcode();
-    // iOS focus sometimes drifts; periodic refresh helps keep it sharp.
-    if (isIOS) {
-      state.focusRefreshTimer = setInterval(() => {
-        tuneCameraForBarcode().catch(() => {});
-      }, 2500);
-    }
     setStatus('الماسح يعمل الآن... ثبّت الباركود داخل الإطار.', 'ok');
   } catch (e) {
     $('scannerShell').classList.add('hidden');
