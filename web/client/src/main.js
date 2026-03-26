@@ -1,5 +1,5 @@
 import './style.css';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 const DEFAULT_URL =
   import.meta.env.VITE_BACKEND_URL ||
@@ -8,6 +8,14 @@ const DEFAULT_URL =
     : 'http://localhost:5000');
 const RECENT_KEY = 'price_client_recent_barcodes';
 const SCAN_REGION_ID = 'scanRegion';
+const SCAN_FORMATS = [
+  Html5QrcodeSupportedFormats.EAN_13,
+  Html5QrcodeSupportedFormats.EAN_8,
+  Html5QrcodeSupportedFormats.UPC_A,
+  Html5QrcodeSupportedFormats.UPC_E,
+  Html5QrcodeSupportedFormats.CODE_128,
+  Html5QrcodeSupportedFormats.CODE_39,
+];
 
 const app = document.querySelector('#app');
 app.innerHTML = `
@@ -15,10 +23,10 @@ app.innerHTML = `
     <header class="header">
       <div class="app-chip">Price Mobile</div>
       <h1>سعر</h1>
-      <p>نسخة مخصصة للهاتف - مسح سريع للباركود</p>
+      <p>نسخة مخصصة للهاتف بتجربة مسح فائقة السرعة</p>
     </header>
 
-    <section class="card">
+    <section class="card scanner-card">
       <div class="quick-actions">
         <button id="toggleScannerBtn" class="scan-btn">تشغيل الماسح بالكاميرا</button>
       </div>
@@ -27,7 +35,19 @@ app.innerHTML = `
         <input id="barcodeInput" type="text" placeholder="مثال: 1234567890" />
         <button id="searchBtn" class="primary">عرض المنتج</button>
       </div>
-      <div id="scanRegion" class="scan-region hidden"></div>
+      <div class="scanner-shell hidden" id="scannerShell">
+        <div id="scanRegion" class="scan-region"></div>
+        <div class="scan-overlay">
+          <div class="scan-frame">
+            <span class="corner tl"></span>
+            <span class="corner tr"></span>
+            <span class="corner bl"></span>
+            <span class="corner br"></span>
+            <span class="scan-line"></span>
+          </div>
+          <div class="scan-hint">وجّه الكاميرا على الباركود داخل الإطار</div>
+        </div>
+      </div>
       <div id="status" class="status">جاهز.</div>
     </section>
 
@@ -44,7 +64,7 @@ app.innerHTML = `
 `;
 
 const $ = (id) => document.getElementById(id);
-const state = { scanner: null, scannerRunning: false };
+const state = { scanner: null, scannerRunning: false, lastScan: '', lastScanAt: 0 };
 
 function getBackendUrl() {
   return DEFAULT_URL.endsWith('/') ? DEFAULT_URL.slice(0, -1) : DEFAULT_URL;
@@ -131,18 +151,37 @@ async function stopScanner() {
   if (!state.scanner || !state.scannerRunning) return;
   await state.scanner.stop();
   state.scannerRunning = false;
-  $('scanRegion').classList.add('hidden');
+  $('scannerShell').classList.add('hidden');
   $('toggleScannerBtn').textContent = 'تشغيل الماسح بالكاميرا';
+  $('toggleScannerBtn').classList.remove('active');
 }
 async function startScanner() {
   if (state.scannerRunning) return;
-  state.scanner = state.scanner || new Html5Qrcode(SCAN_REGION_ID);
-  $('scanRegion').classList.remove('hidden');
+  state.scanner =
+    state.scanner ||
+    new Html5Qrcode(SCAN_REGION_ID, {
+      formatsToSupport: SCAN_FORMATS,
+      verbose: false,
+    });
+  $('scannerShell').classList.remove('hidden');
   $('toggleScannerBtn').textContent = 'إيقاف الماسح';
+  $('toggleScannerBtn').classList.add('active');
   await state.scanner.start(
     { facingMode: 'environment' },
-    { fps: 10, qrbox: { width: 260, height: 160 } },
+    {
+      fps: 20,
+      // Wider scan region improves 1D barcode capture speed.
+      qrbox: { width: 320, height: 170 },
+      aspectRatio: 1.7777778,
+      rememberLastUsedCamera: true,
+      disableFlip: true,
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+    },
     async (decodedText) => {
+      const now = Date.now();
+      if (decodedText === state.lastScan && now - state.lastScanAt < 1200) return;
+      state.lastScan = decodedText;
+      state.lastScanAt = now;
       await stopScanner();
       $('barcodeInput').value = decodedText;
       await searchProduct(decodedText);
@@ -150,7 +189,7 @@ async function startScanner() {
     () => {}
   );
   state.scannerRunning = true;
-  setStatus('الماسح يعمل. وجّه الكاميرا إلى الباركود.');
+  setStatus('الماسح يعمل الآن... ثبّت الباركود داخل الإطار.', 'ok');
 }
 
 $('searchBtn').addEventListener('click', () => searchProduct($('barcodeInput').value));
