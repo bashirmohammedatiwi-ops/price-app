@@ -351,10 +351,50 @@ async function onImport() {
   if (!mapping.barcode || !mapping.price) return setStatus('الرجاء ربط عمود الباركود والسعر.');
   const data = state.rows.filter((r) => String(r[mapping.barcode] ?? '').trim() && String(r[mapping.price] ?? '').trim());
   if (!data.length) return setStatus('لا توجد صفوف صالحة للاستيراد.');
-  setStatus(`جارٍ الاستيراد... (${data.length} صف)`);
+
+  // Import in chunks to avoid 413 (payload too large) on proxies/servers.
+  const CHUNK_SIZE = 500;
+  const chunks = [];
+  for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+    chunks.push(data.slice(i, i + CHUNK_SIZE));
+  }
+
+  const totals = {
+    rows_received: 0,
+    rows_imported: 0,
+    products_created: 0,
+    products_updated: 0,
+    source_rows_created: 0,
+    source_rows_updated: 0,
+    ignored_rows: 0,
+  };
+
   try {
-    const result = await apiImport({ source, mapping, data });
-    setStatus(JSON.stringify(result, null, 2));
+    for (let i = 0; i < chunks.length; i++) {
+      const part = chunks[i];
+      setStatus(`جارٍ الاستيراد... الدفعة ${i + 1}/${chunks.length} (${part.length} صف)`);
+      const result = await apiImport({ source, mapping, data: part });
+      totals.rows_received += Number(result?.rows_received || part.length);
+      totals.rows_imported += Number(result?.rows_imported || 0);
+      totals.products_created += Number(result?.products_created || 0);
+      totals.products_updated += Number(result?.products_updated || 0);
+      totals.source_rows_created += Number(result?.source_rows_created || 0);
+      totals.source_rows_updated += Number(result?.source_rows_updated || 0);
+      totals.ignored_rows += Number(result?.ignored_rows || 0);
+    }
+
+    setStatus(
+      JSON.stringify(
+        {
+          ok: true,
+          message: `تم الاستيراد على ${chunks.length} دفعة`,
+          source,
+          totals,
+        },
+        null,
+        2
+      )
+    );
     setStep(4);
   } catch (e) {
     setStatus(`خطأ الاستيراد: ${e.message}`);
