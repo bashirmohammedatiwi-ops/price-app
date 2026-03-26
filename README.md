@@ -56,20 +56,13 @@ docker compose ps
 الملف الجاهز موجود في:
 
 - `deploy/nginx/deemaalhayaprice.online.conf`
+- `deploy/nginx/install_domain.sh`
 
-خطوات التفعيل:
+### تنفيذ آلي (مستحسن)
 
 ```bash
-sudo apt update
-sudo apt install -y nginx certbot python3-certbot-nginx
-
-sudo cp deploy/nginx/deemaalhayaprice.online.conf /etc/nginx/sites-available/deemaalhayaprice.online.conf
-sudo ln -s /etc/nginx/sites-available/deemaalhayaprice.online.conf /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-
-sudo certbot --nginx -d deemaalhayaprice.online
-sudo systemctl reload nginx
+cd ~/price-app
+./deploy/nginx/install_domain.sh deemaalhayaprice.online admin@deemaalhayaprice.online
 ```
 
 ## ملاحظات
@@ -78,3 +71,4 @@ sudo systemctl reload nginx
 - بعد إعداد Nginx:
   - `https://deemaalhayaprice.online/` للتطبيق
   - `https://deemaalhayaprice.online/admin` للوحة التحكم
+- السكربت يعدل هذا الدومين فقط ولا يعطل المواقع الأخرى.
