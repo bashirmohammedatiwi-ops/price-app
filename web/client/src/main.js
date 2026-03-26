@@ -68,7 +68,40 @@ app.innerHTML = `
 `;
 
 const $ = (id) => document.getElementById(id);
-const state = { scanner: null, scannerRunning: false, lastScan: '', lastScanAt: 0 };
+const state = { scanner: null, scannerRunning: false, lastScan: '', lastScanAt: 0, focusRefreshTimer: null };
+
+function pickBestBackCamera(cameras) {
+  if (!Array.isArray(cameras) || !cameras.length) return null;
+  const normalized = cameras.map((c) => ({
+    ...c,
+    l: String(c.label || '').toLowerCase(),
+  }));
+
+  // iPhone often exposes ultra-wide first; prefer standard/tele for better focus.
+  const score = (cam) => {
+    let s = 0;
+    if (cam.l.includes('back') || cam.l.includes('rear') || cam.l.includes('environment')) s += 40;
+    if (cam.l.includes('tele') || cam.l.includes('photo')) s += 25;
+    if (cam.l.includes('wide') && !cam.l.includes('ultra')) s += 10;
+    if (cam.l.includes('ultra') || cam.l.includes('0.5')) s -= 30;
+    if (cam.l.includes('front') || cam.l.includes('user')) s -= 50;
+    return s;
+  };
+
+  normalized.sort((a, b) => score(b) - score(a));
+  return normalized[0]?.id || null;
+}
+
+async function resolveCameraTarget() {
+  try {
+    const cameras = await Html5Qrcode.getCameras();
+    const best = pickBestBackCamera(cameras);
+    if (best) return { deviceId: { exact: best } };
+  } catch (_) {
+    // Fallback below when camera labels are unavailable.
+  }
+  return { facingMode: 'environment' };
+}
 
 async function tuneCameraForBarcode() {
   if (!state.scanner) return;
@@ -86,7 +119,8 @@ async function tuneCameraForBarcode() {
     if (typeof capabilities.zoom === 'object' && capabilities.zoom) {
       const min = Number(capabilities.zoom.min ?? 1);
       const max = Number(capabilities.zoom.max ?? 1);
-      if (max > min) constraints.zoom = Math.min(max, Math.max(min, 1.5));
+      const targetZoom = isIOS ? 2.0 : 1.5;
+      if (max > min) constraints.zoom = Math.min(max, Math.max(min, targetZoom));
     }
 
     if (Object.keys(constraints).length) {
@@ -180,6 +214,10 @@ async function searchProduct(barcodeRaw) {
 }
 async function stopScanner() {
   if (!state.scanner || !state.scannerRunning) return;
+  if (state.focusRefreshTimer) {
+    clearInterval(state.focusRefreshTimer);
+    state.focusRefreshTimer = null;
+  }
   await state.scanner.stop();
   state.scannerRunning = false;
   $('scannerShell').classList.add('hidden');
@@ -226,8 +264,9 @@ async function startScanner() {
         },
         experimentalFeatures: { useBarCodeDetectorIfSupported: true },
       };
+  const cameraTarget = await resolveCameraTarget();
   await state.scanner.start(
-    { facingMode: 'environment' },
+    cameraTarget,
     scannerConfig,
     async (decodedText) => {
       const now = Date.now();
@@ -242,6 +281,12 @@ async function startScanner() {
   );
   state.scannerRunning = true;
   await tuneCameraForBarcode();
+  // iOS focus sometimes drifts; periodic refresh helps keep it sharp.
+  if (isIOS) {
+    state.focusRefreshTimer = setInterval(() => {
+      tuneCameraForBarcode().catch(() => {});
+    }, 2500);
+  }
   setStatus('الماسح يعمل الآن... ثبّت الباركود داخل الإطار.', 'ok');
 }
 
