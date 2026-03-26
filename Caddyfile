@@ -1,0 +1,18 @@
+deemaalhayaprice.online {
+  encode gzip
+
+  # API backend on same domain under /api
+  handle_path /api/* {
+    reverse_proxy backend:5000
+  }
+
+  # Admin web app under /admin
+  handle /admin* {
+    reverse_proxy admin-web:80
+  }
+
+  # Client web app on root
+  handle {
+    reverse_proxy client-web:80
+  }
+}

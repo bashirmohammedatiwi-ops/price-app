@@ -1,5 +1,7 @@
-const defaultHost = typeof window !== 'undefined' && window.location?.hostname ? window.location.hostname : 'localhost';
-const defaultBackendUrl = `http://${defaultHost}:5000`;
+const defaultBackendUrl =
+  typeof window !== 'undefined' && window.location?.origin
+    ? `${window.location.origin}/api`
+    : 'http://localhost:5000';
 const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || defaultBackendUrl).replace(/\/$/, '');
 
 export function getBackendUrl() {

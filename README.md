@@ -1,9 +1,10 @@
-# Price App - Web Split
+# Price App - Domain Deployment
 
-هذا المشروع يعمل الآن بواجهتين ويب منفصلتين:
+هذا المشروع يعمل الآن عبر دومين واحد:
 
-- `web/admin`: لوحة تحكم الاستيراد وColumn Mapping.
-- `web/client`: تطبيق ويب للمستخدم (بحث باركود + ماسح كاميرا).
+- `https://deemaalhayaprice.online/` تطبيق المستخدم (بحث باركود + ماسح كاميرا)
+- `https://deemaalhayaprice.online/admin` لوحة التحكم
+- `https://deemaalhayaprice.online/api/health` API الصحة
 
 ## تشغيل محلي سريع
 
@@ -31,20 +32,25 @@ npm install
 npm run dev
 ```
 
-## Docker Compose
+## Docker Compose (الإنتاج عبر الدومين)
 
 ```bash
 docker compose up -d --build
 docker compose ps
 ```
 
-المنافذ:
+الـ gateway (Caddy) ينشر:
+- `80` و `443` فقط (HTTP/HTTPS)
 
-- Backend: `http://localhost:5000`
-- Admin Web: `http://localhost:5001`
-- Client Web: `http://localhost:5002`
+## متطلبات الدومين
 
-## متغيرات البيئة للويب
+- سجّل A Record للدومين `deemaalhayaprice.online` إلى IP السيرفر.
+- افتح المنافذ `80` و `443` في الجدار الناري.
+- Caddy سيصدر شهادة HTTPS تلقائيًا.
 
-- `VITE_BACKEND_URL` لتحديد عنوان الـ API إذا أردت override.
-- افتراضياً في الواجهتين: `http://<نفس-الدومين-أو-IP>:5000`.
+## ملاحظات
+
+- الواجهتان تستخدمان API داخليًا على المسار `/api` تلقائيًا (بدون إعداد يدوي).
+- إذا أردت تشغيل محلي بدون دومين، يمكن استخدام:
+  - `http://localhost/` للتطبيق
+  - `http://localhost/admin` للوحة التحكم

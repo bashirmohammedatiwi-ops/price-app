@@ -1,8 +1,11 @@
 import './style.css';
 import { Html5Qrcode } from 'html5-qrcode';
 
-const defaultHost = typeof window !== 'undefined' && window.location?.hostname ? window.location.hostname : 'localhost';
-const DEFAULT_URL = import.meta.env.VITE_BACKEND_URL || `http://${defaultHost}:5000`;
+const DEFAULT_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  (typeof window !== 'undefined' && window.location?.origin
+    ? `${window.location.origin}/api`
+    : 'http://localhost:5000');
 const URL_KEY = 'price_client_backend_url';
 const RECENT_KEY = 'price_client_recent_barcodes';
 const SCAN_REGION_ID = 'scanRegion';
@@ -49,6 +52,7 @@ const state = { scanner: null, scannerRunning: false };
 function normalizeUrl(url) {
   let u = String(url || '').trim();
   if (!u) u = DEFAULT_URL;
+  if (u.startsWith('/')) return u.endsWith('/') ? u.slice(0, -1) : u;
   if (!u.startsWith('http://') && !u.startsWith('https://')) u = `http://${u}`;
   return u.endsWith('/') ? u.slice(0, -1) : u;
 }
