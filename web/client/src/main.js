@@ -143,7 +143,7 @@ function buildScannerConfig(mode = 'primary') {
   if (isIOS) {
     if (mode === 'fallback') {
       return {
-        fps: 10,
+        fps: 16,
         qrbox: IOS_FALLBACK_BOX,
         aspectRatio: 1.3333333,
         rememberLastUsedCamera: true,
@@ -157,7 +157,7 @@ function buildScannerConfig(mode = 'primary') {
       };
     }
     return {
-      fps: 12,
+      fps: 20,
       qrbox: IOS_PRIMARY_BOX,
       aspectRatio: 1.3333333,
       rememberLastUsedCamera: true,
@@ -173,7 +173,7 @@ function buildScannerConfig(mode = 'primary') {
 
   if (mode === 'fallback') {
     return {
-      fps: 12,
+      fps: 18,
       qrbox: DEFAULT_FALLBACK_BOX,
       aspectRatio: 1.3333333,
       rememberLastUsedCamera: true,
@@ -187,7 +187,7 @@ function buildScannerConfig(mode = 'primary') {
     };
   }
   return {
-    fps: 20,
+    fps: 30,
     qrbox: DEFAULT_PRIMARY_BOX,
     aspectRatio: 1.7777778,
     rememberLastUsedCamera: true,
@@ -240,26 +240,7 @@ async function startScannerInternal() {
 }
 
 async function tuneCameraForBarcode() {
-  if (!state.scanner) return;
-  if (isIOS) return;
-  try {
-    const capabilities = state.scanner.getRunningTrackCapabilities?.() || {};
-    const constraints = {};
-
-    // A slight zoom-in usually improves 1D barcode readability.
-    if (typeof capabilities.zoom === 'object' && capabilities.zoom) {
-      const min = Number(capabilities.zoom.min ?? 1);
-      const max = Number(capabilities.zoom.max ?? 1);
-      const targetZoom = 1.5;
-      if (max > min) constraints.zoom = Math.min(max, Math.max(min, targetZoom));
-    }
-
-    if (Object.keys(constraints).length) {
-      await state.scanner.applyVideoConstraints(constraints);
-    }
-  } catch (_) {
-    // Camera tuning is best-effort; keep scanner running on unsupported devices.
-  }
+  // Disabled by request: no focus/zoom tuning at all.
 }
 
 async function setTorch(on) {
@@ -273,24 +254,6 @@ async function setTorch(on) {
     if (btn) btn.textContent = on ? 'إطفاء الإضاءة' : 'تشغيل الإضاءة';
   } catch (_) {
     // Some iOS devices expose torch in caps but still reject toggling.
-  }
-}
-
-async function focusAtTap(clientX, clientY) {
-  if (!state.scannerRunning || !state.scanner) return;
-  try {
-    const caps = state.scanner.getRunningTrackCapabilities?.() || {};
-    if (!caps.pointsOfInterest) return;
-    const shell = $('scannerShell');
-    const rect = shell.getBoundingClientRect();
-    const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
-    await state.scanner.applyVideoConstraints({
-      advanced: [{ pointsOfInterest: [{ x, y }] }],
-    });
-    setStatus('تم تطبيق فوكس يدوي على النقطة المحددة.', 'ok');
-  } catch (_) {
-    // Some devices expose capability but reject it at runtime.
   }
 }
 
@@ -409,7 +372,7 @@ async function startScanner() {
     } catch {
       $('toggleTorchBtn').classList.add('hidden');
     }
-    setStatus('الماسح يعمل... اضغط داخل الإطار لتطبيق فوكس يدوي.', 'ok');
+    setStatus('الماسح يعمل بأعلى سرعة قراءة.', 'ok');
   } catch (e) {
     $('scannerShell').classList.add('hidden');
     $('toggleScannerBtn').textContent = 'تشغيل الماسح بالكاميرا';
@@ -431,10 +394,6 @@ $('toggleScannerBtn').addEventListener('click', async () => {
 
 $('toggleTorchBtn').addEventListener('click', async () => {
   await setTorch(!state.torchOn);
-});
-
-$('scannerShell').addEventListener('click', async (e) => {
-  await focusAtTap(e.clientX, e.clientY);
 });
 
 document.addEventListener('visibilitychange', async () => {
