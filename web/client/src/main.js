@@ -16,6 +16,10 @@ const SCAN_FORMATS = [
   Html5QrcodeSupportedFormats.CODE_128,
   Html5QrcodeSupportedFormats.CODE_39,
 ];
+const isIOS =
+  typeof navigator !== 'undefined' &&
+  (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 
 const app = document.querySelector('#app');
 app.innerHTML = `
@@ -193,22 +197,38 @@ async function startScanner() {
   $('scannerShell').classList.remove('hidden');
   $('toggleScannerBtn').textContent = 'إيقاف الماسح';
   $('toggleScannerBtn').classList.add('active');
+  const scannerConfig = isIOS
+    ? {
+        // iPhone Safari performs better with moderate fps and 4:3 camera ratio.
+        fps: 12,
+        qrbox: { width: 300, height: 170 },
+        aspectRatio: 1.3333333,
+        rememberLastUsedCamera: true,
+        disableFlip: true,
+        videoConstraints: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 960 },
+        },
+        // BarcodeDetector path can be unstable on iOS, keep it off there.
+        experimentalFeatures: { useBarCodeDetectorIfSupported: false },
+      }
+    : {
+        fps: 20,
+        qrbox: { width: 340, height: 180 },
+        aspectRatio: 1.7777778,
+        rememberLastUsedCamera: true,
+        disableFlip: true,
+        videoConstraints: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      };
   await state.scanner.start(
     { facingMode: 'environment' },
-    {
-      fps: 20,
-      // Higher scan area improves 1D barcode focus accuracy on phones.
-      qrbox: { width: 340, height: 180 },
-      aspectRatio: 1.7777778,
-      rememberLastUsedCamera: true,
-      disableFlip: true,
-      videoConstraints: {
-        facingMode: { ideal: 'environment' },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-      },
-      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-    },
+    scannerConfig,
     async (decodedText) => {
       const now = Date.now();
       if (decodedText === state.lastScan && now - state.lastScanAt < 1200) return;
