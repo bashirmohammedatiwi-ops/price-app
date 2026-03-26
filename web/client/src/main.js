@@ -37,6 +37,7 @@ app.innerHTML = `
     <section class="card scanner-card">
       <div class="quick-actions">
         <button id="toggleScannerBtn" class="scan-btn">تشغيل الماسح بالكاميرا</button>
+        <button id="switchCameraBtn" class="secondary-btn hidden" type="button">تبديل الكاميرا</button>
         <button id="toggleTorchBtn" class="secondary-btn hidden" type="button">تشغيل الإضاءة</button>
         <div id="cameraLabel" class="camera-label hidden">—</div>
       </div>
@@ -81,6 +82,7 @@ const state = {
   lastScan: '',
   lastScanAt: 0,
   selectedCameraId: null,
+  cameras: [],
   torchOn: false,
 };
 
@@ -115,10 +117,21 @@ function pickBestBackCamera(cameras) {
 async function resolveCameraTarget() {
   try {
     const cameras = await Html5Qrcode.getCameras();
+    state.cameras = cameras;
+    $('switchCameraBtn').classList.toggle('hidden', cameras.length <= 1);
 
     if (state.selectedCameraId) {
       const exists = cameras.some((c) => c.id === state.selectedCameraId);
-      if (exists) return { deviceId: { exact: state.selectedCameraId } };
+      if (exists) {
+        const selectedCam = cameras.find((c) => c.id === state.selectedCameraId);
+        const label = selectedCam?.label || 'الكاميرا الخلفية';
+        const labelEl = $('cameraLabel');
+        if (labelEl) {
+          labelEl.textContent = `الكاميرا: ${label}`;
+          labelEl.classList.remove('hidden');
+        }
+        return { deviceId: { exact: state.selectedCameraId } };
+      }
     }
 
     const best = pickBestBackCamera(cameras);
@@ -128,7 +141,7 @@ async function resolveCameraTarget() {
       const label = selectedCam?.label || 'الكاميرا الخلفية';
       const labelEl = $('cameraLabel');
       if (labelEl) {
-        labelEl.textContent = `العدسة: ${label}`;
+        labelEl.textContent = `الكاميرا: ${label}`;
         labelEl.classList.remove('hidden');
       }
       return { deviceId: { exact: best } };
@@ -137,6 +150,26 @@ async function resolveCameraTarget() {
     // Fallback below when camera labels are unavailable.
   }
   return { facingMode: 'environment' };
+}
+
+async function switchCamera() {
+  if (!state.cameras.length) {
+    try {
+      state.cameras = await Html5Qrcode.getCameras();
+    } catch {
+      return;
+    }
+  }
+  if (state.cameras.length <= 1) return;
+
+  const currentIndex = state.cameras.findIndex((c) => c.id === state.selectedCameraId);
+  const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % state.cameras.length : 0;
+  state.selectedCameraId = state.cameras[nextIndex].id;
+
+  if (state.scannerRunning) {
+    await stopScanner();
+    await startScanner();
+  }
 }
 
 function buildScannerConfig(mode = 'primary') {
@@ -157,7 +190,7 @@ function buildScannerConfig(mode = 'primary') {
       };
     }
     return {
-      fps: 20,
+      fps: 16,
       qrbox: IOS_PRIMARY_BOX,
       aspectRatio: 1.3333333,
       rememberLastUsedCamera: true,
@@ -187,7 +220,7 @@ function buildScannerConfig(mode = 'primary') {
     };
   }
   return {
-    fps: 30,
+    fps: 26,
     qrbox: DEFAULT_PRIMARY_BOX,
     aspectRatio: 1.7777778,
     rememberLastUsedCamera: true,
@@ -351,7 +384,7 @@ async function stopScanner() {
   $('toggleScannerBtn').textContent = 'تشغيل الماسح بالكاميرا';
   $('toggleScannerBtn').classList.remove('active');
   $('toggleTorchBtn').classList.add('hidden');
-  $('cameraLabel').classList.add('hidden');
+  $('switchCameraBtn').classList.toggle('hidden', state.cameras.length <= 1);
   state.torchOn = false;
   state.scannerBusy = false;
 }
@@ -394,6 +427,10 @@ $('toggleScannerBtn').addEventListener('click', async () => {
 
 $('toggleTorchBtn').addEventListener('click', async () => {
   await setTorch(!state.torchOn);
+});
+
+$('switchCameraBtn').addEventListener('click', async () => {
+  await switchCamera();
 });
 
 document.addEventListener('visibilitychange', async () => {
