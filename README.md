@@ -1,10 +1,10 @@
 # Price App - Domain Deployment (Nginx)
 
-هذا المشروع يعمل الآن عبر دومين واحد باستخدام Nginx (بدون Caddy):
+هذا المشروع يعمل الآن على نفس الدومين الرئيسي عبر امتدادات (paths):
 
-- `https://deemaalhayaprice.online/` تطبيق المستخدم (بحث باركود + ماسح كاميرا)
-- `https://deemaalhayaprice.online/admin` لوحة التحكم
-- `https://deemaalhayaprice.online/api/health` API الصحة
+- `https://demaalhayaadelivery.online/price/` تطبيق المستخدم (بحث باركود + ماسح كاميرا)
+- `https://demaalhayaadelivery.online/price-admin/` لوحة التحكم
+- `https://demaalhayaadelivery.online/price-api/health` API الصحة
 
 ## تشغيل محلي سريع
 
@@ -54,12 +54,12 @@ docker compose ps
 ## إعداد الدومين مع Proxy موجود مسبقًا (موصى به لسيرفرك)
 
 إذا كان عندك container يملك `80/443` مثل `delivery-nginx`، لا تشغل Nginx ثاني.
-استخدم السكربت التالي لحقن إعداد الدومين داخل نفس الـ proxy تلقائيًا:
+استخدم السكربت التالي لحقن path routing داخل نفس الـ proxy تلقائيًا:
 
 ```bash
 cd ~/price-app
 docker compose up -d --build
-./deploy/nginx/apply_to_existing_proxy.sh deemaalhayaprice.online delivery-nginx
+./deploy/nginx/apply_to_existing_proxy.sh demaalhayaadelivery.online delivery-nginx
 ```
 
 هذا يحل الربط فورًا بدون إيقاف بقية المشاريع.
@@ -82,7 +82,8 @@ cd ~/price-app
 ## ملاحظات
 
 - الواجهتان تستخدمان API داخليًا على المسار `/api` تلقائيًا (بدون إعداد يدوي).
-- بعد إعداد Nginx:
-  - `https://deemaalhayaprice.online/` للتطبيق
-  - `https://deemaalhayaprice.online/admin` للوحة التحكم
+- بعد تطبيق السكربت على proxy الرئيسي:
+  - `https://demaalhayaadelivery.online/price/` للتطبيق
+  - `https://demaalhayaadelivery.online/price-admin/` للوحة التحكم
+  - `https://demaalhayaadelivery.online/price-api/health` للـ API
 - السكربت يعدل هذا الدومين فقط ولا يعطل المواقع الأخرى.

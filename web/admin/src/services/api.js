@@ -1,6 +1,6 @@
 const defaultBackendUrl =
   typeof window !== 'undefined' && window.location?.origin
-    ? `${window.location.origin}/api`
+    ? `${window.location.origin}/price-api`
     : 'http://localhost:5000';
 const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || defaultBackendUrl).replace(/\/$/, '');
 

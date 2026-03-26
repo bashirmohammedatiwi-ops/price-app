@@ -4,7 +4,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 const DEFAULT_URL =
   import.meta.env.VITE_BACKEND_URL ||
   (typeof window !== 'undefined' && window.location?.origin
-    ? `${window.location.origin}/api`
+    ? `${window.location.origin}/price-api`
     : 'http://localhost:5000');
 const URL_KEY = 'price_client_backend_url';
 const RECENT_KEY = 'price_client_recent_barcodes';
