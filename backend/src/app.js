@@ -7,9 +7,10 @@ const { mappingTemplateRoutes } = require('./routes/mappingTemplateRoutes');
 
 function createApp() {
   const app = express();
+  const bodyLimit = process.env.BODY_LIMIT || '25mb';
 
   app.use(cors());
-  app.use(express.json({ limit: '2mb' }));
+  app.use(express.json({ limit: bodyLimit }));
 
   app.get('/health', (_req, res) => {
     res.json({ ok: true });
