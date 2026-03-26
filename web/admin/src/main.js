@@ -13,13 +13,16 @@ document.querySelector('#app').innerHTML = `
     <div class="topbar-inner">
       <div class="brand">
         <div class="brand-dot"></div>
-        <div class="brand-title">سعر - إدارة الأسعار (ويب)</div>
+        <div>
+          <div class="brand-title">سعر - إدارة الأسعار</div>
+          <div class="brand-subtitle">نسخة سطح مكتب لإدارة الاستيراد والمطابقة</div>
+        </div>
       </div>
       <div class="topbar-badge" id="mappingStatusBadge">جاهز لاستيراد Excel بمطابقة أعمدة</div>
     </div>
   </div>
 
-  <div class="app">
+  <div class="app app-desktop">
     <h1 class="hero-title">استيراد Excel ذكي</h1>
     <div class="small-note">Backend: <span id="backendUrlText"></span></div>
     <div class="stepper">

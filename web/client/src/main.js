@@ -14,8 +14,9 @@ const app = document.querySelector('#app');
 app.innerHTML = `
   <main class="container">
     <header class="header">
-      <h1>سعر - تطبيق ويب</h1>
-      <p>بحث سريع بالباركود (كاميرا + إدخال يدوي)</p>
+      <div class="app-chip">Price Mobile</div>
+      <h1>سعر</h1>
+      <p>نسخة مخصصة للهاتف - مسح سريع للباركود</p>
     </header>
 
     <section class="card">
@@ -29,7 +30,7 @@ app.innerHTML = `
         <input id="barcodeInput" type="text" placeholder="مثال: 1234567890" />
         <button id="searchBtn" class="primary">عرض المنتج</button>
       </div>
-      <div class="row"><button id="toggleScannerBtn">تشغيل الماسح بالكاميرا</button></div>
+      <div class="row"><button id="toggleScannerBtn" class="scan-btn">تشغيل الماسح بالكاميرا</button></div>
       <div id="scanRegion" class="scan-region hidden"></div>
       <div id="status" class="status">جاهز.</div>
     </section>
