@@ -37,7 +37,6 @@ app.innerHTML = `
     <section class="card scanner-card">
       <div class="quick-actions">
         <button id="toggleScannerBtn" class="scan-btn">تشغيل الماسح بالكاميرا</button>
-        <button id="switchCameraBtn" class="secondary-btn hidden" type="button">تبديل العدسة</button>
         <button id="toggleTorchBtn" class="secondary-btn hidden" type="button">تشغيل الإضاءة</button>
         <div id="cameraLabel" class="camera-label hidden">—</div>
       </div>
@@ -81,11 +80,8 @@ const state = {
   scannerBusy: false,
   lastScan: '',
   lastScanAt: 0,
-  cameras: [],
   selectedCameraId: null,
   torchOn: false,
-  autoSwitchTimer: null,
-  autoSwitchedOnce: false,
 };
 
 function pickBestBackCamera(cameras) {
@@ -118,10 +114,7 @@ function pickBestBackCamera(cameras) {
 
 async function resolveCameraTarget() {
   try {
-    const cameras = state.cameras.length ? state.cameras : await Html5Qrcode.getCameras();
-    state.cameras = cameras;
-    const switchBtn = $('switchCameraBtn');
-    if (switchBtn) switchBtn.classList.toggle('hidden', cameras.length <= 1);
+    const cameras = await Html5Qrcode.getCameras();
 
     if (state.selectedCameraId) {
       const exists = cameras.some((c) => c.id === state.selectedCameraId);
@@ -283,6 +276,24 @@ async function setTorch(on) {
   }
 }
 
+async function focusAtTap(clientX, clientY) {
+  if (!state.scannerRunning || !state.scanner) return;
+  try {
+    const caps = state.scanner.getRunningTrackCapabilities?.() || {};
+    if (!caps.pointsOfInterest) return;
+    const shell = $('scannerShell');
+    const rect = shell.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+    await state.scanner.applyVideoConstraints({
+      advanced: [{ pointsOfInterest: [{ x, y }] }],
+    });
+    setStatus('تم تطبيق فوكس يدوي على النقطة المحددة.', 'ok');
+  } catch (_) {
+    // Some devices expose capability but reject it at runtime.
+  }
+}
+
 function getBackendUrl() {
   return DEFAULT_URL.endsWith('/') ? DEFAULT_URL.slice(0, -1) : DEFAULT_URL;
 }
@@ -367,10 +378,6 @@ async function searchProduct(barcodeRaw) {
 async function stopScanner() {
   if (!state.scanner || !state.scannerRunning || state.scannerBusy) return;
   state.scannerBusy = true;
-  if (state.autoSwitchTimer) {
-    clearTimeout(state.autoSwitchTimer);
-    state.autoSwitchTimer = null;
-  }
   try {
     await state.scanner.stop();
   } catch (_) {
@@ -385,34 +392,12 @@ async function stopScanner() {
   state.torchOn = false;
   state.scannerBusy = false;
 }
-
-async function switchCamera() {
-  if (!state.cameras.length) {
-    try {
-      state.cameras = await Html5Qrcode.getCameras();
-    } catch {
-      return;
-    }
-  }
-  if (state.cameras.length <= 1) return;
-
-  const currentIdx = state.cameras.findIndex((c) => c.id === state.selectedCameraId);
-  const nextIdx = currentIdx >= 0 ? (currentIdx + 1) % state.cameras.length : 0;
-  state.selectedCameraId = state.cameras[nextIdx].id;
-
-  const wasRunning = state.scannerRunning;
-  if (wasRunning) {
-    await stopScanner();
-    await startScanner();
-  }
-}
 async function startScanner() {
   if (state.scannerRunning || state.scannerBusy) return;
   state.scannerBusy = true;
   $('scannerShell').classList.remove('hidden');
   $('toggleScannerBtn').textContent = 'إيقاف الماسح';
   $('toggleScannerBtn').classList.add('active');
-  state.autoSwitchedOnce = false;
   try {
     await startScannerInternal();
     state.scannerRunning = true;
@@ -424,16 +409,7 @@ async function startScanner() {
     } catch {
       $('toggleTorchBtn').classList.add('hidden');
     }
-    // iPhone: if nothing detected quickly, try one automatic lens switch.
-    if (isIOS) {
-      state.autoSwitchTimer = setTimeout(async () => {
-        if (!state.scannerRunning || state.autoSwitchedOnce) return;
-        state.autoSwitchedOnce = true;
-        await switchCamera();
-        setStatus('تم تبديل العدسة تلقائيًا لتحسين الفوكس.', 'warn');
-      }, 4500);
-    }
-    setStatus('الماسح يعمل الآن... ثبّت الباركود داخل الإطار.', 'ok');
+    setStatus('الماسح يعمل... اضغط داخل الإطار لتطبيق فوكس يدوي.', 'ok');
   } catch (e) {
     $('scannerShell').classList.add('hidden');
     $('toggleScannerBtn').textContent = 'تشغيل الماسح بالكاميرا';
@@ -453,13 +429,12 @@ $('toggleScannerBtn').addEventListener('click', async () => {
   else await startScanner();
 });
 
-$('switchCameraBtn').addEventListener('click', async () => {
-  state.autoSwitchedOnce = true;
-  await switchCamera();
-});
-
 $('toggleTorchBtn').addEventListener('click', async () => {
   await setTorch(!state.torchOn);
+});
+
+$('scannerShell').addEventListener('click', async (e) => {
+  await focusAtTap(e.clientX, e.clientY);
 });
 
 document.addEventListener('visibilitychange', async () => {
