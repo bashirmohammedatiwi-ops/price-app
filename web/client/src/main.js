@@ -37,6 +37,9 @@ app.innerHTML = `
     <section class="card scanner-card">
       <div class="quick-actions">
         <button id="toggleScannerBtn" class="scan-btn">تشغيل الماسح بالكاميرا</button>
+        <button id="switchCameraBtn" class="secondary-btn hidden" type="button">تبديل العدسة</button>
+        <button id="toggleTorchBtn" class="secondary-btn hidden" type="button">تشغيل الإضاءة</button>
+        <div id="cameraLabel" class="camera-label hidden">—</div>
       </div>
       <div class="row">
         <label for="barcodeInput">اكتب الباركود</label>
@@ -78,6 +81,11 @@ const state = {
   scannerBusy: false,
   lastScan: '',
   lastScanAt: 0,
+  cameras: [],
+  selectedCameraId: null,
+  torchOn: false,
+  autoSwitchTimer: null,
+  autoSwitchedOnce: false,
 };
 
 function pickBestBackCamera(cameras) {
@@ -87,13 +95,19 @@ function pickBestBackCamera(cameras) {
     l: String(c.label || '').toLowerCase(),
   }));
 
-  // iPhone often exposes ultra-wide first; prefer standard/tele for better focus.
+  // iPhone: avoid tele lenses for near barcode focus; prefer wide/back camera.
   const score = (cam) => {
     let s = 0;
     if (cam.l.includes('back') || cam.l.includes('rear') || cam.l.includes('environment')) s += 40;
-    if (cam.l.includes('tele') || cam.l.includes('photo')) s += 25;
-    if (cam.l.includes('wide') && !cam.l.includes('ultra')) s += 10;
-    if (cam.l.includes('ultra') || cam.l.includes('0.5')) s -= 30;
+    if (isIOS) {
+      if (cam.l.includes('tele') || cam.l.includes('photo') || cam.l.includes('2x') || cam.l.includes('3x')) s -= 60;
+      if (cam.l.includes('wide') || cam.l.includes('1x') || cam.l.includes('back camera')) s += 25;
+      if (cam.l.includes('ultra') || cam.l.includes('0.5')) s -= 10;
+    } else {
+      if (cam.l.includes('tele') || cam.l.includes('photo')) s += 10;
+      if (cam.l.includes('wide') && !cam.l.includes('ultra')) s += 8;
+      if (cam.l.includes('ultra') || cam.l.includes('0.5')) s -= 20;
+    }
     if (cam.l.includes('front') || cam.l.includes('user')) s -= 50;
     return s;
   };
@@ -104,9 +118,28 @@ function pickBestBackCamera(cameras) {
 
 async function resolveCameraTarget() {
   try {
-    const cameras = await Html5Qrcode.getCameras();
+    const cameras = state.cameras.length ? state.cameras : await Html5Qrcode.getCameras();
+    state.cameras = cameras;
+    const switchBtn = $('switchCameraBtn');
+    if (switchBtn) switchBtn.classList.toggle('hidden', cameras.length <= 1);
+
+    if (state.selectedCameraId) {
+      const exists = cameras.some((c) => c.id === state.selectedCameraId);
+      if (exists) return { deviceId: { exact: state.selectedCameraId } };
+    }
+
     const best = pickBestBackCamera(cameras);
-    if (best) return { deviceId: { exact: best } };
+    if (best) {
+      state.selectedCameraId = best;
+      const selectedCam = cameras.find((c) => c.id === best);
+      const label = selectedCam?.label || 'الكاميرا الخلفية';
+      const labelEl = $('cameraLabel');
+      if (labelEl) {
+        labelEl.textContent = `العدسة: ${label}`;
+        labelEl.classList.remove('hidden');
+      }
+      return { deviceId: { exact: best } };
+    }
   } catch (_) {
     // Fallback below when camera labels are unavailable.
   }
@@ -236,6 +269,20 @@ async function tuneCameraForBarcode() {
   }
 }
 
+async function setTorch(on) {
+  if (!state.scannerRunning || !state.scanner) return;
+  try {
+    const caps = state.scanner.getRunningTrackCapabilities?.() || {};
+    if (!caps.torch) return;
+    await state.scanner.applyVideoConstraints({ advanced: [{ torch: on }] });
+    state.torchOn = on;
+    const btn = $('toggleTorchBtn');
+    if (btn) btn.textContent = on ? 'إطفاء الإضاءة' : 'تشغيل الإضاءة';
+  } catch (_) {
+    // Some iOS devices expose torch in caps but still reject toggling.
+  }
+}
+
 function getBackendUrl() {
   return DEFAULT_URL.endsWith('/') ? DEFAULT_URL.slice(0, -1) : DEFAULT_URL;
 }
@@ -320,6 +367,10 @@ async function searchProduct(barcodeRaw) {
 async function stopScanner() {
   if (!state.scanner || !state.scannerRunning || state.scannerBusy) return;
   state.scannerBusy = true;
+  if (state.autoSwitchTimer) {
+    clearTimeout(state.autoSwitchTimer);
+    state.autoSwitchTimer = null;
+  }
   try {
     await state.scanner.stop();
   } catch (_) {
@@ -329,7 +380,31 @@ async function stopScanner() {
   $('scannerShell').classList.add('hidden');
   $('toggleScannerBtn').textContent = 'تشغيل الماسح بالكاميرا';
   $('toggleScannerBtn').classList.remove('active');
+  $('toggleTorchBtn').classList.add('hidden');
+  $('cameraLabel').classList.add('hidden');
+  state.torchOn = false;
   state.scannerBusy = false;
+}
+
+async function switchCamera() {
+  if (!state.cameras.length) {
+    try {
+      state.cameras = await Html5Qrcode.getCameras();
+    } catch {
+      return;
+    }
+  }
+  if (state.cameras.length <= 1) return;
+
+  const currentIdx = state.cameras.findIndex((c) => c.id === state.selectedCameraId);
+  const nextIdx = currentIdx >= 0 ? (currentIdx + 1) % state.cameras.length : 0;
+  state.selectedCameraId = state.cameras[nextIdx].id;
+
+  const wasRunning = state.scannerRunning;
+  if (wasRunning) {
+    await stopScanner();
+    await startScanner();
+  }
 }
 async function startScanner() {
   if (state.scannerRunning || state.scannerBusy) return;
@@ -337,10 +412,27 @@ async function startScanner() {
   $('scannerShell').classList.remove('hidden');
   $('toggleScannerBtn').textContent = 'إيقاف الماسح';
   $('toggleScannerBtn').classList.add('active');
+  state.autoSwitchedOnce = false;
   try {
     await startScannerInternal();
     state.scannerRunning = true;
     await tuneCameraForBarcode();
+    // show torch button only if supported
+    try {
+      const caps = state.scanner.getRunningTrackCapabilities?.() || {};
+      $('toggleTorchBtn').classList.toggle('hidden', !caps.torch);
+    } catch {
+      $('toggleTorchBtn').classList.add('hidden');
+    }
+    // iPhone: if nothing detected quickly, try one automatic lens switch.
+    if (isIOS) {
+      state.autoSwitchTimer = setTimeout(async () => {
+        if (!state.scannerRunning || state.autoSwitchedOnce) return;
+        state.autoSwitchedOnce = true;
+        await switchCamera();
+        setStatus('تم تبديل العدسة تلقائيًا لتحسين الفوكس.', 'warn');
+      }, 4500);
+    }
     setStatus('الماسح يعمل الآن... ثبّت الباركود داخل الإطار.', 'ok');
   } catch (e) {
     $('scannerShell').classList.add('hidden');
@@ -359,6 +451,15 @@ $('barcodeInput').addEventListener('keydown', (e) => {
 $('toggleScannerBtn').addEventListener('click', async () => {
   if (state.scannerRunning) await stopScanner();
   else await startScanner();
+});
+
+$('switchCameraBtn').addEventListener('click', async () => {
+  state.autoSwitchedOnce = true;
+  await switchCamera();
+});
+
+$('toggleTorchBtn').addEventListener('click', async () => {
+  await setTorch(!state.torchOn);
 });
 
 document.addEventListener('visibilitychange', async () => {

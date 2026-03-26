@@ -88,6 +88,22 @@ button.primary {
   background: linear-gradient(135deg, #ef4444, #dc2626);
   box-shadow: 0 12px 20px rgba(220, 38, 38, 0.22);
 }
+.secondary-btn {
+  margin-top: 8px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+}
+.camera-label {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #334155;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  padding: 6px 10px;
+}
 
 .scanner-shell {
   position: relative;
