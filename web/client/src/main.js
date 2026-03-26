@@ -66,6 +66,33 @@ app.innerHTML = `
 const $ = (id) => document.getElementById(id);
 const state = { scanner: null, scannerRunning: false, lastScan: '', lastScanAt: 0 };
 
+async function tuneCameraForBarcode() {
+  if (!state.scanner) return;
+  try {
+    const capabilities = state.scanner.getRunningTrackCapabilities?.() || {};
+    const constraints = {};
+
+    // Prefer continuous autofocus when available.
+    if (capabilities.focusMode && Array.isArray(capabilities.focusMode)) {
+      if (capabilities.focusMode.includes('continuous')) constraints.focusMode = 'continuous';
+      else if (capabilities.focusMode.includes('auto')) constraints.focusMode = 'auto';
+    }
+
+    // A slight zoom-in usually improves 1D barcode readability.
+    if (typeof capabilities.zoom === 'object' && capabilities.zoom) {
+      const min = Number(capabilities.zoom.min ?? 1);
+      const max = Number(capabilities.zoom.max ?? 1);
+      if (max > min) constraints.zoom = Math.min(max, Math.max(min, 1.5));
+    }
+
+    if (Object.keys(constraints).length) {
+      await state.scanner.applyVideoConstraints(constraints);
+    }
+  } catch (_) {
+    // Camera tuning is best-effort; keep scanner running on unsupported devices.
+  }
+}
+
 function getBackendUrl() {
   return DEFAULT_URL.endsWith('/') ? DEFAULT_URL.slice(0, -1) : DEFAULT_URL;
 }
@@ -170,11 +197,16 @@ async function startScanner() {
     { facingMode: 'environment' },
     {
       fps: 20,
-      // Wider scan region improves 1D barcode capture speed.
-      qrbox: { width: 320, height: 170 },
+      // Higher scan area improves 1D barcode focus accuracy on phones.
+      qrbox: { width: 340, height: 180 },
       aspectRatio: 1.7777778,
       rememberLastUsedCamera: true,
       disableFlip: true,
+      videoConstraints: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
       experimentalFeatures: { useBarCodeDetectorIfSupported: true },
     },
     async (decodedText) => {
@@ -189,6 +221,7 @@ async function startScanner() {
     () => {}
   );
   state.scannerRunning = true;
+  await tuneCameraForBarcode();
   setStatus('الماسح يعمل الآن... ثبّت الباركود داخل الإطار.', 'ok');
 }
 
