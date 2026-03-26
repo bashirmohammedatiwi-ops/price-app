@@ -68,7 +68,14 @@ app.innerHTML = `
 `;
 
 const $ = (id) => document.getElementById(id);
-const state = { scanner: null, scannerRunning: false, lastScan: '', lastScanAt: 0, focusRefreshTimer: null };
+const state = {
+  scanner: null,
+  scannerRunning: false,
+  scannerBusy: false,
+  lastScan: '',
+  lastScanAt: 0,
+  focusRefreshTimer: null,
+};
 
 function pickBestBackCamera(cameras) {
   if (!Array.isArray(cameras) || !cameras.length) return null;
@@ -101,6 +108,98 @@ async function resolveCameraTarget() {
     // Fallback below when camera labels are unavailable.
   }
   return { facingMode: 'environment' };
+}
+
+function buildScannerConfig(mode = 'primary') {
+  if (isIOS) {
+    if (mode === 'fallback') {
+      return {
+        fps: 10,
+        qrbox: { width: 280, height: 170 },
+        aspectRatio: 1.3333333,
+        rememberLastUsedCamera: true,
+        disableFlip: true,
+        videoConstraints: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 960 },
+          height: { ideal: 720 },
+        },
+        experimentalFeatures: { useBarCodeDetectorIfSupported: false },
+      };
+    }
+    return {
+      fps: 12,
+      qrbox: { width: 300, height: 170 },
+      aspectRatio: 1.3333333,
+      rememberLastUsedCamera: true,
+      disableFlip: true,
+      videoConstraints: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 960 },
+      },
+      experimentalFeatures: { useBarCodeDetectorIfSupported: false },
+    };
+  }
+
+  if (mode === 'fallback') {
+    return {
+      fps: 12,
+      qrbox: { width: 300, height: 170 },
+      aspectRatio: 1.3333333,
+      rememberLastUsedCamera: true,
+      disableFlip: true,
+      videoConstraints: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+    };
+  }
+  return {
+    fps: 20,
+    qrbox: { width: 340, height: 180 },
+    aspectRatio: 1.7777778,
+    rememberLastUsedCamera: true,
+    disableFlip: true,
+    videoConstraints: {
+      facingMode: { ideal: 'environment' },
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
+    },
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+  };
+}
+
+function ensureScannerInstance() {
+  if (state.scanner) return state.scanner;
+  state.scanner = new Html5Qrcode(SCAN_REGION_ID, {
+    formatsToSupport: SCAN_FORMATS,
+    verbose: false,
+  });
+  return state.scanner;
+}
+
+async function startScannerInternal() {
+  const scanner = ensureScannerInstance();
+  const cameraTarget = await resolveCameraTarget();
+  const onDecode = async (decodedText) => {
+    const now = Date.now();
+    if (decodedText === state.lastScan && now - state.lastScanAt < 1200) return;
+    state.lastScan = decodedText;
+    state.lastScanAt = now;
+    await stopScanner();
+    $('barcodeInput').value = decodedText;
+    await searchProduct(decodedText);
+  };
+
+  // Two-step start: primary config then fallback if iPhone fails.
+  try {
+    await scanner.start(cameraTarget, buildScannerConfig('primary'), onDecode, () => {});
+  } catch (_) {
+    await scanner.start({ facingMode: 'environment' }, buildScannerConfig('fallback'), onDecode, () => {});
+  }
 }
 
 async function tuneCameraForBarcode() {
@@ -213,81 +312,48 @@ async function searchProduct(barcodeRaw) {
   }
 }
 async function stopScanner() {
-  if (!state.scanner || !state.scannerRunning) return;
+  if (!state.scanner || !state.scannerRunning || state.scannerBusy) return;
+  state.scannerBusy = true;
   if (state.focusRefreshTimer) {
     clearInterval(state.focusRefreshTimer);
     state.focusRefreshTimer = null;
   }
-  await state.scanner.stop();
+  try {
+    await state.scanner.stop();
+  } catch (_) {
+    // Ignore stop errors on iOS race conditions.
+  }
   state.scannerRunning = false;
   $('scannerShell').classList.add('hidden');
   $('toggleScannerBtn').textContent = 'تشغيل الماسح بالكاميرا';
   $('toggleScannerBtn').classList.remove('active');
+  state.scannerBusy = false;
 }
 async function startScanner() {
-  if (state.scannerRunning) return;
-  state.scanner =
-    state.scanner ||
-    new Html5Qrcode(SCAN_REGION_ID, {
-      formatsToSupport: SCAN_FORMATS,
-      verbose: false,
-    });
+  if (state.scannerRunning || state.scannerBusy) return;
+  state.scannerBusy = true;
   $('scannerShell').classList.remove('hidden');
   $('toggleScannerBtn').textContent = 'إيقاف الماسح';
   $('toggleScannerBtn').classList.add('active');
-  const scannerConfig = isIOS
-    ? {
-        // iPhone Safari performs better with moderate fps and 4:3 camera ratio.
-        fps: 12,
-        qrbox: { width: 300, height: 170 },
-        aspectRatio: 1.3333333,
-        rememberLastUsedCamera: true,
-        disableFlip: true,
-        videoConstraints: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 960 },
-        },
-        // BarcodeDetector path can be unstable on iOS, keep it off there.
-        experimentalFeatures: { useBarCodeDetectorIfSupported: false },
-      }
-    : {
-        fps: 20,
-        qrbox: { width: 340, height: 180 },
-        aspectRatio: 1.7777778,
-        rememberLastUsedCamera: true,
-        disableFlip: true,
-        videoConstraints: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-      };
-  const cameraTarget = await resolveCameraTarget();
-  await state.scanner.start(
-    cameraTarget,
-    scannerConfig,
-    async (decodedText) => {
-      const now = Date.now();
-      if (decodedText === state.lastScan && now - state.lastScanAt < 1200) return;
-      state.lastScan = decodedText;
-      state.lastScanAt = now;
-      await stopScanner();
-      $('barcodeInput').value = decodedText;
-      await searchProduct(decodedText);
-    },
-    () => {}
-  );
-  state.scannerRunning = true;
-  await tuneCameraForBarcode();
-  // iOS focus sometimes drifts; periodic refresh helps keep it sharp.
-  if (isIOS) {
-    state.focusRefreshTimer = setInterval(() => {
-      tuneCameraForBarcode().catch(() => {});
-    }, 2500);
+  try {
+    await startScannerInternal();
+    state.scannerRunning = true;
+    await tuneCameraForBarcode();
+    // iOS focus sometimes drifts; periodic refresh helps keep it sharp.
+    if (isIOS) {
+      state.focusRefreshTimer = setInterval(() => {
+        tuneCameraForBarcode().catch(() => {});
+      }, 2500);
+    }
+    setStatus('الماسح يعمل الآن... ثبّت الباركود داخل الإطار.', 'ok');
+  } catch (e) {
+    $('scannerShell').classList.add('hidden');
+    $('toggleScannerBtn').textContent = 'تشغيل الماسح بالكاميرا';
+    $('toggleScannerBtn').classList.remove('active');
+    setStatus(`تعذر تشغيل الكاميرا: ${e?.message || 'Unknown error'}`, 'error');
+  } finally {
+    state.scannerBusy = false;
   }
-  setStatus('الماسح يعمل الآن... ثبّت الباركود داخل الإطار.', 'ok');
 }
 
 $('searchBtn').addEventListener('click', () => searchProduct($('barcodeInput').value));
@@ -295,11 +361,14 @@ $('barcodeInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') searchProduct($('barcodeInput').value);
 });
 $('toggleScannerBtn').addEventListener('click', async () => {
-  try {
-    if (state.scannerRunning) await stopScanner();
-    else await startScanner();
-  } catch (e) {
-    setStatus(`تعذر تشغيل الكاميرا: ${e.message}`, 'error');
+  if (state.scannerRunning) await stopScanner();
+  else await startScanner();
+});
+
+document.addEventListener('visibilitychange', async () => {
+  // iOS Safari may freeze camera stream in background.
+  if (document.hidden && state.scannerRunning) {
+    await stopScanner();
   }
 });
 
