@@ -79,6 +79,7 @@ const state = {
   scanner: null,
   scannerRunning: false,
   scannerBusy: false,
+  switchingCamera: false,
   lastScan: '',
   lastScanAt: 0,
   selectedCameraId: null,
@@ -99,8 +100,9 @@ function pickBestBackCamera(cameras) {
     if (cam.l.includes('back') || cam.l.includes('rear') || cam.l.includes('environment')) s += 40;
     if (isIOS) {
       if (cam.l.includes('tele') || cam.l.includes('photo') || cam.l.includes('2x') || cam.l.includes('3x')) s -= 60;
-      if (cam.l.includes('wide') || cam.l.includes('1x') || cam.l.includes('back camera')) s += 25;
-      if (cam.l.includes('ultra') || cam.l.includes('0.5')) s -= 10;
+      // For close barcode distance on iPhone 13/12 class devices, ultra-wide often focuses better.
+      if (cam.l.includes('ultra') || cam.l.includes('0.5') || cam.l.includes('macro')) s += 35;
+      if (cam.l.includes('wide') || cam.l.includes('1x') || cam.l.includes('back camera')) s += 20;
     } else {
       if (cam.l.includes('tele') || cam.l.includes('photo')) s += 10;
       if (cam.l.includes('wide') && !cam.l.includes('ultra')) s += 8;
@@ -114,22 +116,34 @@ function pickBestBackCamera(cameras) {
   return normalized[0]?.id || null;
 }
 
-async function resolveCameraTarget() {
+function updateCameraLabel(cameraId) {
+  const labelEl = $('cameraLabel');
+  if (!labelEl) return;
+  const cam = state.cameras.find((c) => c.id === cameraId);
+  const label = cam?.label || 'الكاميرا الخلفية';
+  labelEl.textContent = `الكاميرا: ${label}`;
+  labelEl.classList.remove('hidden');
+}
+
+async function resolveCameraTarget(cameraIdOverride = null) {
   try {
     const cameras = await Html5Qrcode.getCameras();
     state.cameras = cameras;
     $('switchCameraBtn').classList.toggle('hidden', cameras.length <= 1);
 
+    if (cameraIdOverride) {
+      const exists = cameras.some((c) => c.id === cameraIdOverride);
+      if (exists) {
+        state.selectedCameraId = cameraIdOverride;
+        updateCameraLabel(cameraIdOverride);
+        return { deviceId: { exact: cameraIdOverride } };
+      }
+    }
+
     if (state.selectedCameraId) {
       const exists = cameras.some((c) => c.id === state.selectedCameraId);
       if (exists) {
-        const selectedCam = cameras.find((c) => c.id === state.selectedCameraId);
-        const label = selectedCam?.label || 'الكاميرا الخلفية';
-        const labelEl = $('cameraLabel');
-        if (labelEl) {
-          labelEl.textContent = `الكاميرا: ${label}`;
-          labelEl.classList.remove('hidden');
-        }
+        updateCameraLabel(state.selectedCameraId);
         return { deviceId: { exact: state.selectedCameraId } };
       }
     }
@@ -137,13 +151,7 @@ async function resolveCameraTarget() {
     const best = pickBestBackCamera(cameras);
     if (best) {
       state.selectedCameraId = best;
-      const selectedCam = cameras.find((c) => c.id === best);
-      const label = selectedCam?.label || 'الكاميرا الخلفية';
-      const labelEl = $('cameraLabel');
-      if (labelEl) {
-        labelEl.textContent = `الكاميرا: ${label}`;
-        labelEl.classList.remove('hidden');
-      }
+      updateCameraLabel(best);
       return { deviceId: { exact: best } };
     }
   } catch (_) {
@@ -153,22 +161,46 @@ async function resolveCameraTarget() {
 }
 
 async function switchCamera() {
+  if (state.switchingCamera || state.scannerBusy) return;
+  state.switchingCamera = true;
   if (!state.cameras.length) {
     try {
       state.cameras = await Html5Qrcode.getCameras();
     } catch {
+      state.switchingCamera = false;
       return;
     }
   }
-  if (state.cameras.length <= 1) return;
+  if (state.cameras.length <= 1) {
+    state.switchingCamera = false;
+    return;
+  }
 
   const currentIndex = state.cameras.findIndex((c) => c.id === state.selectedCameraId);
   const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % state.cameras.length : 0;
-  state.selectedCameraId = state.cameras[nextIndex].id;
+  const nextCameraId = state.cameras[nextIndex].id;
+  state.selectedCameraId = nextCameraId;
+  updateCameraLabel(nextCameraId);
 
-  if (state.scannerRunning) {
-    await stopScanner();
-    await startScanner();
+  try {
+    if (state.scannerRunning) {
+      state.scannerBusy = true;
+      try {
+        await state.scanner?.stop();
+      } catch (_) {}
+      state.scannerRunning = false;
+      await startScannerInternal(nextCameraId);
+      state.scannerRunning = true;
+      state.scannerBusy = false;
+      setStatus('تم التبديل إلى الكاميرا التالية.', 'ok');
+    } else {
+      setStatus('تم اختيار كاميرا جديدة. شغّل الماسح للبدء.', 'ok');
+    }
+  } catch (e) {
+    state.scannerBusy = false;
+    setStatus(`تعذر التبديل: ${e?.message || 'Unknown error'}`, 'error');
+  } finally {
+    state.switchingCamera = false;
   }
 }
 
@@ -243,9 +275,9 @@ function ensureScannerInstance() {
   return state.scanner;
 }
 
-async function startScannerInternal() {
+async function startScannerInternal(cameraIdOverride = null) {
   const scanner = ensureScannerInstance();
-  const cameraTarget = await resolveCameraTarget();
+  const cameraTarget = await resolveCameraTarget(cameraIdOverride);
   const onDecode = async (decodedText) => {
     const now = Date.now();
     if (decodedText === state.lastScan && now - state.lastScanAt < 1200) return;
