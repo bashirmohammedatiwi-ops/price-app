@@ -16,6 +16,10 @@ const SCAN_FORMATS = [
   Html5QrcodeSupportedFormats.CODE_128,
   Html5QrcodeSupportedFormats.CODE_39,
 ];
+const IOS_PRIMARY_BOX = { width: 300, height: 170 };
+const IOS_FALLBACK_BOX = { width: 280, height: 170 };
+const DEFAULT_PRIMARY_BOX = { width: 340, height: 180 };
+const DEFAULT_FALLBACK_BOX = { width: 300, height: 170 };
 const isIOS =
   typeof navigator !== 'undefined' &&
   (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -115,7 +119,7 @@ function buildScannerConfig(mode = 'primary') {
     if (mode === 'fallback') {
       return {
         fps: 10,
-        qrbox: { width: 280, height: 170 },
+        qrbox: IOS_FALLBACK_BOX,
         aspectRatio: 1.3333333,
         rememberLastUsedCamera: true,
         disableFlip: true,
@@ -129,7 +133,7 @@ function buildScannerConfig(mode = 'primary') {
     }
     return {
       fps: 12,
-      qrbox: { width: 300, height: 170 },
+      qrbox: IOS_PRIMARY_BOX,
       aspectRatio: 1.3333333,
       rememberLastUsedCamera: true,
       disableFlip: true,
@@ -145,7 +149,7 @@ function buildScannerConfig(mode = 'primary') {
   if (mode === 'fallback') {
     return {
       fps: 12,
-      qrbox: { width: 300, height: 170 },
+      qrbox: DEFAULT_FALLBACK_BOX,
       aspectRatio: 1.3333333,
       rememberLastUsedCamera: true,
       disableFlip: true,
@@ -159,7 +163,7 @@ function buildScannerConfig(mode = 'primary') {
   }
   return {
     fps: 20,
-    qrbox: { width: 340, height: 180 },
+    qrbox: DEFAULT_PRIMARY_BOX,
     aspectRatio: 1.7777778,
     rememberLastUsedCamera: true,
     disableFlip: true,
@@ -196,9 +200,17 @@ async function startScannerInternal() {
 
   // Two-step start: primary config then fallback if iPhone fails.
   try {
-    await scanner.start(cameraTarget, buildScannerConfig('primary'), onDecode, () => {});
+    const primaryConfig = buildScannerConfig('primary');
+    const pb = primaryConfig.qrbox || DEFAULT_PRIMARY_BOX;
+    $('scannerShell').style.setProperty('--scan-box-w', `${pb.width}px`);
+    $('scannerShell').style.setProperty('--scan-box-h', `${pb.height}px`);
+    await scanner.start(cameraTarget, primaryConfig, onDecode, () => {});
   } catch (_) {
-    await scanner.start({ facingMode: 'environment' }, buildScannerConfig('fallback'), onDecode, () => {});
+    const fallbackConfig = buildScannerConfig('fallback');
+    const fb = fallbackConfig.qrbox || DEFAULT_FALLBACK_BOX;
+    $('scannerShell').style.setProperty('--scan-box-w', `${fb.width}px`);
+    $('scannerShell').style.setProperty('--scan-box-h', `${fb.height}px`);
+    await scanner.start({ facingMode: 'environment' }, fallbackConfig, onDecode, () => {});
   }
 }
 
@@ -220,6 +232,10 @@ async function tuneCameraForBarcode() {
       const max = Number(capabilities.zoom.max ?? 1);
       const targetZoom = isIOS ? 2.0 : 1.5;
       if (max > min) constraints.zoom = Math.min(max, Math.max(min, targetZoom));
+    }
+
+    if (capabilities.pointsOfInterest) {
+      constraints.advanced = [{ pointsOfInterest: [{ x: 0.5, y: 0.5 }] }];
     }
 
     if (Object.keys(constraints).length) {

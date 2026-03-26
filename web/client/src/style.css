@@ -111,8 +111,8 @@ button.primary {
 }
 .scan-frame {
   position: relative;
-  width: min(86%, 340px);
-  height: 150px;
+  width: min(86%, var(--scan-box-w, 340px));
+  height: var(--scan-box-h, 170px);
   border-radius: 18px;
   border: 2px solid rgba(255, 255, 255, 0.25);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
@@ -140,7 +140,7 @@ button.primary {
 }
 @keyframes scanMove {
   0% { transform: translateY(0); opacity: 0.95; }
-  50% { transform: translateY(120px); opacity: 1; }
+  50% { transform: translateY(calc(var(--scan-box-h, 170px) - 24px)); opacity: 1; }
   100% { transform: translateY(0); opacity: 0.95; }
 }
 .scan-hint {
