@@ -44,13 +44,20 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
     final barcode = rawValue?.trim();
     if (barcode == null || barcode.isEmpty) return;
 
-    setState(() {
-      _isNavigating = true;
-    });
-    await _scannerController.stop();
+    setState(() => _isNavigating = true);
 
-    final recentCache = const RecentScansCache();
-    await recentCache.addBarcode(barcode);
+    try {
+      // Best-effort: stop camera to avoid repeated detections.
+      await _scannerController.stop();
+    } catch (_) {
+      // Ignore and still navigate.
+    }
+
+    // Best-effort: save to recent history (do not block navigation).
+    try {
+      const recentCache = RecentScansCache();
+      await recentCache.addBarcode(barcode);
+    } catch (_) {}
 
     final repo = ProductRepository(
       apiClient: const ProductApiClient(backendUrlProvider: BackendUrlProvider()),
@@ -58,15 +65,34 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
     );
 
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => ProductViewScreen(
-          barcode: barcode,
-          repository: repo,
-          backendUrlProvider: const BackendUrlProvider(),
-        ),
-      ),
-    );
+    final nav = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Navigate after current frame to avoid "setState during build" edge cases.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      try {
+        nav.pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => ProductViewScreen(
+              barcode: barcode,
+              repository: repo,
+              backendUrlProvider: const BackendUrlProvider(),
+            ),
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isNavigating = false);
+        _scannerController.start().catchError((_) {});
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('تعذر فتح نتيجة الباركود: ${e.toString()}'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    });
   }
 
   @override
@@ -166,9 +192,11 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
                     color: _withAlpha(Colors.black, 0.55),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Text(
-                    'وجّه الكاميرا نحو الباركود.\nعند اكتشافه سيتم الانتقال تلقائياً.',
-                    style: TextStyle(
+                  child: Text(
+                    _isNavigating
+                        ? 'جارٍ فتح المنتج…'
+                        : 'وجّه الكاميرا نحو الباركود.\nعند اكتشافه سيتم الانتقال تلقائياً.',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -179,6 +207,21 @@ class _ScannerScreenState extends State<ScannerScreen> with SingleTickerProvider
               ),
             ),
           ),
+          if (_isNavigating)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  color: _withAlpha(Colors.black, 0.12),
+                  child: const Center(
+                    child: SizedBox(
+                      width: 36,
+                      height: 36,
+                      child: CircularProgressIndicator(strokeWidth: 3),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

@@ -1,7 +1,7 @@
 /* global fetch, XLSX */
 const XLSX = require('xlsx');
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://187.124.23.65:5000';
 
 const $ = (id) => document.getElementById(id);
 
@@ -409,6 +409,15 @@ function updateMappingStatusBadge() {
   if (readiness.status === 'error') el.classList.add('badge-error');
 
   el.textContent = readiness.message;
+
+  const mirror = $('mappingStatusBadgeMirror');
+  if (mirror) {
+    mirror.textContent = readiness.message;
+    mirror.classList.remove('badge-ok', 'badge-warn', 'badge-error');
+    if (readiness.status === 'ok') mirror.classList.add('badge-ok');
+    if (readiness.status === 'warn') mirror.classList.add('badge-warn');
+    if (readiness.status === 'error') mirror.classList.add('badge-error');
+  }
 }
 
 function updateImportButtonState() {
@@ -416,6 +425,8 @@ function updateImportButtonState() {
   if (!btn) return;
   const readiness = computeImportReadiness();
   btn.disabled = !readiness.canImport;
+  const mirror = $('importBtnMirror');
+  if (mirror) mirror.disabled = !readiness.canImport;
   return readiness.canImport;
 }
 
@@ -577,6 +588,16 @@ $('sourceName').addEventListener('change', async () => {
 $('loadTemplateBtn').addEventListener('click', async () => loadTemplateForCurrentSource());
 $('saveTemplateBtn').addEventListener('click', async () => onSaveTemplate());
 $('importBtn').addEventListener('click', async () => onImport());
+const importMirror = $('importBtnMirror');
+if (importMirror) importMirror.addEventListener('click', async () => onImport());
+
+const scrollToMappingBtn = $('scrollToMappingBtn');
+if (scrollToMappingBtn) {
+  scrollToMappingBtn.addEventListener('click', () => {
+    const mapEl = document.getElementById('mapBarcode');
+    if (mapEl) mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+}
 
 $('templateSelect').addEventListener('change', async () => {
   const v = $('templateSelect').value;

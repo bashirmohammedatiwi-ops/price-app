@@ -9,16 +9,16 @@ class BackendUrlProvider {
   String _defaultBaseUrl() {
     // Works well for Android Emulator.
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:3001';
+      return 'http://187.124.23.65:5000';
     }
 
     // For iOS/macOS simulators/local dev.
     if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
-      return 'http://localhost:3001';
+      return 'http://187.124.23.65:5000';
     }
 
     // Web/others.
-    return 'http://localhost:3001';
+    return 'http://187.124.23.65:5000';
   }
 
   Future<String> getBaseUrl() async {

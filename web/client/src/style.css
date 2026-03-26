@@ -1,0 +1,109 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #f3f5fa;
+  color: #0f172a;
+  direction: rtl;
+}
+.container {
+  width: min(980px, 92vw);
+  margin: 24px auto 42px;
+}
+.header h1 { margin: 0 0 8px; }
+.header p { margin: 0 0 16px; color: #64748b; }
+.card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 10px 0;
+}
+label {
+  width: 120px;
+  font-weight: 700;
+}
+input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+button {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+button.primary {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+.status {
+  margin-top: 8px;
+  color: #334155;
+}
+.status.ok { color: #166534; }
+.status.warn { color: #92400e; }
+.status.error { color: #be123c; }
+.scan-region {
+  width: min(520px, 100%);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+}
+.hidden { display: none; }
+.recent-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  border-radius: 999px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.product-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.price-badge {
+  background: #0ea5e9;
+  color: #fff;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-weight: 800;
+}
+.source-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+.source-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.field-row { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+.field-pill {
+  border-radius: 999px;
+  background: #f1f5f9;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.muted { color: #64748b; }
+.error { color: #be123c; font-weight: 700; }
+@media (max-width: 720px) {
+  .row { flex-wrap: wrap; }
+  label { width: 100%; }
+}

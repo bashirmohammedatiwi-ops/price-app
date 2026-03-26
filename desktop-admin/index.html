@@ -27,84 +27,106 @@
         <div class="step" data-step="4"><span>4</span> النتيجة</div>
       </div>
 
-      <section class="card">
-        <h2>1) المصدر والملف</h2>
-        <div class="row">
-          <label>المصدر</label>
-          <div class="source-controls">
-            <select id="sourcePreset">
-              <option value="">قوالب جاهزة...</option>
-              <option value="company">الشركة</option>
-              <option value="dubai">دبي</option>
-              <option value="market">السوق</option>
-            </select>
-            <select id="templateSelect">
-              <option value="">قالب: (اختياري)</option>
-            </select>
-            <input id="sourceName" type="text" placeholder="مثال: dubai" />
-          </div>
+      <div class="layout">
+        <div class="main">
+          <section class="card">
+            <h2>1) المصدر والملف</h2>
+            <div class="row">
+              <label>المصدر</label>
+              <div class="source-controls">
+                <select id="sourcePreset">
+                  <option value="">قوالب جاهزة...</option>
+                  <option value="company">الشركة</option>
+                  <option value="dubai">دبي</option>
+                  <option value="market">السوق</option>
+                </select>
+                <select id="templateSelect">
+                  <option value="">قالب: (اختياري)</option>
+                </select>
+                <input id="sourceName" type="text" placeholder="مثال: dubai" />
+              </div>
+            </div>
+
+            <div class="row">
+              <label>ملف Excel</label>
+              <input id="fileInput" type="file" accept=".xlsx,.xls" />
+            </div>
+
+            <div class="row">
+              <label>الورقة (Sheet)</label>
+              <select id="sheetSelect" disabled></select>
+            </div>
+          </section>
+
+          <section class="card">
+            <h2>2) المعاينة</h2>
+            <div id="previewWrap" class="preview-wrap">
+              <div id="previewMeta" class="preview-meta">قم برفع ملف Excel للمعاينة.</div>
+              <div id="previewTableWrap"></div>
+            </div>
+          </section>
+
+          <section class="card">
+            <h2>3) ربط الأعمدة (Mapping)</h2>
+
+            <div class="row">
+              <label>الباركود (مطلوب)</label>
+              <select id="mapBarcode"></select>
+            </div>
+
+            <div class="row">
+              <label>اسم المنتج (اختياري)</label>
+              <select id="mapName"></select>
+            </div>
+
+            <div class="row">
+              <label>السعر (مطلوب)</label>
+              <select id="mapPrice"></select>
+            </div>
+
+            <div class="row">
+              <label>حقول إضافية (ديناميكية)</label>
+              <div class="extra-fields">
+                <div id="extraFields"></div>
+              </div>
+            </div>
+
+            <div class="row extra-add">
+              <input id="customFieldKey" type="text" placeholder="أضف مفتاح حقل (مثال: brand_uam)" />
+              <button id="addCustomFieldBtn" type="button">إضافة حقل</button>
+            </div>
+
+            <div class="row actions">
+              <button id="loadTemplateBtn" type="button">تحميل القالب</button>
+              <button id="saveTemplateBtn" type="button">حفظ القالب</button>
+              <button id="importBtn" type="button" class="primary">استيراد</button>
+            </div>
+          </section>
         </div>
 
-        <div class="row">
-          <label>ملف Excel</label>
-          <input id="fileInput" type="file" accept=".xlsx,.xls" />
-        </div>
+        <aside class="side">
+          <section class="card side-card">
+            <h2>حالة الاستيراد</h2>
+            <div class="side-status">
+              <div class="side-status-label">الجاهزية</div>
+              <div class="side-status-badge" id="mappingStatusBadgeMirror">—</div>
+            </div>
+            <div class="side-actions">
+              <button id="importBtnMirror" type="button" class="primary">استيراد الآن</button>
+              <button id="scrollToMappingBtn" type="button">الذهاب للـ Mapping</button>
+            </div>
+            <div class="side-hint">
+              - اربط <b>Barcode</b> و <b>Price</b> أولاً<br />
+              - استخدم قالب المصدر لتسريع العمل
+            </div>
+          </section>
 
-        <div class="row">
-          <label>الورقة (Sheet)</label>
-          <select id="sheetSelect" disabled></select>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>2) المعاينة</h2>
-        <div id="previewWrap" class="preview-wrap">
-          <div id="previewMeta" class="preview-meta">قم برفع ملف Excel للمعاينة.</div>
-          <div id="previewTableWrap"></div>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>3) ربط الأعمدة (Mapping)</h2>
-
-        <div class="row">
-          <label>الباركود (مطلوب)</label>
-          <select id="mapBarcode"></select>
-        </div>
-
-        <div class="row">
-          <label>اسم المنتج (اختياري)</label>
-          <select id="mapName"></select>
-        </div>
-
-        <div class="row">
-          <label>السعر (مطلوب)</label>
-          <select id="mapPrice"></select>
-        </div>
-
-        <div class="row">
-          <label>حقول إضافية (ديناميكية)</label>
-          <div class="extra-fields">
-            <div id="extraFields"></div>
-          </div>
-        </div>
-
-        <div class="row extra-add">
-          <input id="customFieldKey" type="text" placeholder="أضف مفتاح حقل (مثال: brand_uam)" />
-          <button id="addCustomFieldBtn" type="button">إضافة حقل</button>
-        </div>
-
-        <div class="row actions">
-          <button id="loadTemplateBtn" type="button">تحميل القالب</button>
-          <button id="saveTemplateBtn" type="button">حفظ القالب</button>
-          <button id="importBtn" type="button" class="primary">استيراد</button>
-        </div>
-      </section>
-
-      <section class="card" id="cardImportResult">
-        <h2>4) النتيجة</h2>
-        <pre id="result" class="result">---</pre>
-      </section>
+          <section class="card" id="cardImportResult">
+            <h2>4) النتيجة</h2>
+            <pre id="result" class="result">---</pre>
+          </section>
+        </aside>
+      </div>
     </div>
 
     <script src="./renderer.js"></script>

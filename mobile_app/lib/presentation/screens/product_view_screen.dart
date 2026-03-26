@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'dart:io' show SocketException;
+
 import 'package:flutter/material.dart';
 
 import 'package:mobile_app/domain/models/product.dart';
+import 'package:mobile_app/domain/product_not_found_exception.dart';
 import 'package:mobile_app/data/repositories/product_repository.dart';
 import 'package:mobile_app/config/backend_url_provider.dart';
 import 'package:mobile_app/presentation/widgets/backend_url_dialog.dart';
@@ -58,15 +62,60 @@ class _ProductViewScreenState extends State<ProductViewScreen> {
           }
 
           if (snapshot.hasError) {
+            final err = snapshot.error;
+            if (err is ProductNotFoundException) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.inventory_2_outlined, size: 48, color: UiTokens.textSecondary),
+                      const SizedBox(height: 12),
+                      Text(
+                        'لا يوجد منتج مسجّل لهذا الباركود',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        err.barcode,
+                        style: TextStyle(
+                          color: UiTokens.textSecondary,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: 'monospace',
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'استورد البيانات من تطبيق الإدارة أو جرّب باركوداً آخر.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.black54),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _refresh,
+                        child: const Text('إعادة المحاولة'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            final networkHint = _networkErrorHint(err);
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'تعذر الاتصال بالسيرفر. تحقق من رابط `Backend`.',
-                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700),
+                    Text(
+                      networkHint.title,
+                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w700),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 10),
@@ -78,8 +127,8 @@ class _ProductViewScreenState extends State<ProductViewScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        snapshot.error.toString(),
-                        maxLines: 5,
+                        networkHint.detail,
+                        maxLines: 6,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(color: Colors.black87, fontSize: 12),
                         textAlign: TextAlign.center,
@@ -385,6 +434,41 @@ class _ProductViewScreenState extends State<ProductViewScreen> {
       ),
     );
   }
+}
+
+class _NetworkErrorHint {
+  final String title;
+  final String detail;
+  const _NetworkErrorHint(this.title, this.detail);
+}
+
+_NetworkErrorHint _networkErrorHint(Object? err) {
+  if (err is SocketException) {
+    return const _NetworkErrorHint(
+      'تعذر الاتصال بالسيرفر',
+      'تحقق من اتصال الإنترنت، ثم من رابط السيرفر في «تعديل رابط السيرفر».',
+    );
+  }
+  if (err is TimeoutException) {
+    return const _NetworkErrorHint(
+      'انتهت مهلة الاتصال',
+      'السيرفر لم يرد في الوقت المناسب. تحقق من العنوان أو أعد المحاولة.',
+    );
+  }
+  final s = err?.toString() ?? '';
+  if (s.contains('Failed host lookup') ||
+      s.contains('Connection refused') ||
+      s.contains('Network is unreachable') ||
+      s.contains('Connection reset')) {
+    return const _NetworkErrorHint(
+      'تعذر الاتصال بالسيرفر',
+      'تحقق من اتصال الإنترنت، ثم من رابط السيرفر في «تعديل رابط السيرفر».',
+    );
+  }
+  return _NetworkErrorHint(
+    'حدث خطأ أثناء جلب المنتج',
+    s.isEmpty ? 'خطأ غير معروف' : s,
+  );
 }
 
 class _FieldPill extends StatelessWidget {
