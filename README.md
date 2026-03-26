@@ -1,6 +1,6 @@
-# Price App - Domain Deployment
+# Price App - Domain Deployment (Nginx)
 
-هذا المشروع يعمل الآن عبر دومين واحد:
+هذا المشروع يعمل الآن عبر دومين واحد باستخدام Nginx (بدون Caddy):
 
 - `https://deemaalhayaprice.online/` تطبيق المستخدم (بحث باركود + ماسح كاميرا)
 - `https://deemaalhayaprice.online/admin` لوحة التحكم
@@ -32,25 +32,49 @@ npm install
 npm run dev
 ```
 
-## Docker Compose (الإنتاج عبر الدومين)
+## Docker Compose (الخدمات الداخلية)
 
 ```bash
+docker compose down
 docker compose up -d --build
 docker compose ps
 ```
 
-الـ gateway (Caddy) ينشر:
-- `80` و `443` فقط (HTTP/HTTPS)
+المنافذ بعد التشغيل:
+- Backend: `5000`
+- Admin Web: `5001`
+- Client Web: `5002`
 
 ## متطلبات الدومين
 
 - سجّل A Record للدومين `deemaalhayaprice.online` إلى IP السيرفر.
 - افتح المنافذ `80` و `443` في الجدار الناري.
-- Caddy سيصدر شهادة HTTPS تلقائيًا.
+- ثبّت Nginx + Certbot على السيرفر.
+
+## إعداد Nginx للدومين
+
+الملف الجاهز موجود في:
+
+- `deploy/nginx/deemaalhayaprice.online.conf`
+
+خطوات التفعيل:
+
+```bash
+sudo apt update
+sudo apt install -y nginx certbot python3-certbot-nginx
+
+sudo cp deploy/nginx/deemaalhayaprice.online.conf /etc/nginx/sites-available/deemaalhayaprice.online.conf
+sudo ln -s /etc/nginx/sites-available/deemaalhayaprice.online.conf /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+
+sudo certbot --nginx -d deemaalhayaprice.online
+sudo systemctl reload nginx
+```
 
 ## ملاحظات
 
 - الواجهتان تستخدمان API داخليًا على المسار `/api` تلقائيًا (بدون إعداد يدوي).
-- إذا أردت تشغيل محلي بدون دومين، يمكن استخدام:
-  - `http://localhost/` للتطبيق
-  - `http://localhost/admin` للوحة التحكم
+- بعد إعداد Nginx:
+  - `https://deemaalhayaprice.online/` للتطبيق
+  - `https://deemaalhayaprice.online/admin` للوحة التحكم
