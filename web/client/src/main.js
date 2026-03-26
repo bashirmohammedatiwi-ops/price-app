@@ -6,7 +6,6 @@ const DEFAULT_URL =
   (typeof window !== 'undefined' && window.location?.origin
     ? `${window.location.origin}/price-api`
     : 'http://localhost:5000');
-const URL_KEY = 'price_client_backend_url';
 const RECENT_KEY = 'price_client_recent_barcodes';
 const SCAN_REGION_ID = 'scanRegion';
 
@@ -20,17 +19,14 @@ app.innerHTML = `
     </header>
 
     <section class="card">
-      <div class="row">
-        <label for="backendUrl">رابط السيرفر</label>
-        <input id="backendUrl" type="text" />
-        <button id="saveBackendBtn">حفظ</button>
+      <div class="quick-actions">
+        <button id="toggleScannerBtn" class="scan-btn">تشغيل الماسح بالكاميرا</button>
       </div>
       <div class="row">
-        <label for="barcodeInput">الباركود</label>
+        <label for="barcodeInput">اكتب الباركود</label>
         <input id="barcodeInput" type="text" placeholder="مثال: 1234567890" />
         <button id="searchBtn" class="primary">عرض المنتج</button>
       </div>
-      <div class="row"><button id="toggleScannerBtn" class="scan-btn">تشغيل الماسح بالكاميرا</button></div>
       <div id="scanRegion" class="scan-region hidden"></div>
       <div id="status" class="status">جاهز.</div>
     </section>
@@ -41,7 +37,7 @@ app.innerHTML = `
     </section>
 
     <section class="card">
-      <h2>نتيجة المنتج</h2>
+      <h2>تفاصيل المنتج</h2>
       <div id="resultWrap" class="result-wrap">لا توجد نتيجة بعد.</div>
     </section>
   </main>
@@ -50,18 +46,8 @@ app.innerHTML = `
 const $ = (id) => document.getElementById(id);
 const state = { scanner: null, scannerRunning: false };
 
-function normalizeUrl(url) {
-  let u = String(url || '').trim();
-  if (!u) u = DEFAULT_URL;
-  if (u.startsWith('/')) return u.endsWith('/') ? u.slice(0, -1) : u;
-  if (!u.startsWith('http://') && !u.startsWith('https://')) u = `http://${u}`;
-  return u.endsWith('/') ? u.slice(0, -1) : u;
-}
 function getBackendUrl() {
-  return normalizeUrl(localStorage.getItem(URL_KEY) || DEFAULT_URL);
-}
-function setBackendUrl(url) {
-  localStorage.setItem(URL_KEY, normalizeUrl(url));
+  return DEFAULT_URL.endsWith('/') ? DEFAULT_URL.slice(0, -1) : DEFAULT_URL;
 }
 function setStatus(msg, type = '') {
   const el = $('status');
@@ -167,12 +153,6 @@ async function startScanner() {
   setStatus('الماسح يعمل. وجّه الكاميرا إلى الباركود.');
 }
 
-$('backendUrl').value = getBackendUrl();
-$('saveBackendBtn').addEventListener('click', () => {
-  setBackendUrl($('backendUrl').value);
-  $('backendUrl').value = getBackendUrl();
-  setStatus('تم حفظ رابط السيرفر.', 'ok');
-});
 $('searchBtn').addEventListener('click', () => searchProduct($('barcodeInput').value));
 $('barcodeInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') searchProduct($('barcodeInput').value);
