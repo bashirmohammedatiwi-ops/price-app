@@ -51,12 +51,26 @@ docker compose ps
 - افتح المنافذ `80` و `443` في الجدار الناري.
 - ثبّت Nginx + Certbot على السيرفر.
 
-## إعداد Nginx للدومين
+## إعداد الدومين مع Proxy موجود مسبقًا (موصى به لسيرفرك)
+
+إذا كان عندك container يملك `80/443` مثل `delivery-nginx`، لا تشغل Nginx ثاني.
+استخدم السكربت التالي لحقن إعداد الدومين داخل نفس الـ proxy تلقائيًا:
+
+```bash
+cd ~/price-app
+docker compose up -d --build
+./deploy/nginx/apply_to_existing_proxy.sh deemaalhayaprice.online delivery-nginx
+```
+
+هذا يحل الربط فورًا بدون إيقاف بقية المشاريع.
+
+## إعداد Nginx للدومين (في حال لا يوجد Proxy آخر)
 
 الملف الجاهز موجود في:
 
 - `deploy/nginx/deemaalhayaprice.online.conf`
 - `deploy/nginx/install_domain.sh`
+- `deploy/nginx/apply_to_existing_proxy.sh`
 
 ### تنفيذ آلي (مستحسن)
 
