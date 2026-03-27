@@ -111,6 +111,33 @@ button.primary {
   gap: 10px;
   margin-bottom: 10px;
 }
+.engine-switcher {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.engine-btn {
+  border-radius: 12px;
+  padding: 9px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+}
+.engine-btn.active {
+  background: linear-gradient(135deg, #0ea5e9, #2563eb);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.22);
+}
+.engine-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
 .scan-btn-fast {
   background: linear-gradient(135deg, #059669, #0d9488);
   box-shadow: 0 10px 18px rgba(5, 150, 105, 0.28);
@@ -131,56 +158,7 @@ button.primary {
   margin-top: 0;
 }
 
-/* طبقة Flutter (سريع) — خارج #app في index.html */
-.flutter-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  display: flex;
-  flex-direction: column;
-  background: #0f172a;
-  box-sizing: border-box;
-}
-.flutter-overlay.hidden {
-  display: none !important;
-}
-.flutter-overlay-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 14px;
-  padding-top: max(10px, env(safe-area-inset-top));
-  background: rgba(15, 23, 42, 0.92);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  flex-shrink: 0;
-}
-.flutter-overlay-title {
-  color: #f8fafc;
-  font-weight: 900;
-  font-size: 15px;
-}
-.flutter-overlay-close {
-  border-radius: 12px;
-  padding: 8px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  font-weight: 800;
-  font-size: 14px;
-  cursor: pointer;
-}
-.flutter-overlay-close:active {
-  transform: scale(0.98);
-}
-.flutter-iframe {
-  flex: 1;
-  width: 100%;
-  min-height: 0;
-  border: 0;
-  background: #fff;
-}
-
+/* Fast mode: Flutter scanner overlay */
 .scanner-shell {
   position: relative;
   margin-top: 10px;
@@ -194,6 +172,7 @@ button.primary {
   width: 100%;
   min-height: 250px;
   height: 250px;
+  position: relative;
 }
 .scan-region video {
   width: 100% !important;
@@ -201,6 +180,16 @@ button.primary {
   object-fit: cover !important;
   border-radius: 0 !important;
   display: block;
+}
+.html5-region,
+.html5-region > div {
+  width: 100% !important;
+  height: 100% !important;
+}
+.html5-region video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
 }
 .scan-overlay {
   pointer-events: none;

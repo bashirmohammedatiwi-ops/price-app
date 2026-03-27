@@ -1,0 +1,20 @@
+services:
+  price-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: price-api
+    environment:
+      - NODE_ENV=production
+      - HOST=0.0.0.0
+      - PORT=5000
+      - BODY_LIMIT=25mb
+      - DATABASE_PATH=/data/prices.sqlite
+    ports:
+      - "5000:5000"
+    volumes:
+      - price_api_data:/data
+    restart: unless-stopped
+
+volumes:
+  price_api_data:

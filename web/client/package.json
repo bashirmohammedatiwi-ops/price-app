@@ -10,8 +10,11 @@
     "flutter-web:build": "cd ../../mobile_app && flutter build web --base-href /price/flutter/ && rm -rf ../web/client/public/flutter && cp -R build/web ../web/client/public/flutter"
   },
   "dependencies": {
+    "@ericblade/quagga2": "^1.12.1",
+    "@undecaf/barcode-detector-polyfill": "^0.9.23",
     "@zxing/browser": "^0.1.5",
-    "@zxing/library": "^0.21.3"
+    "@zxing/library": "^0.21.3",
+    "html5-qrcode": "^2.3.8"
   },
   "devDependencies": {
     "vite": "^8.0.1"

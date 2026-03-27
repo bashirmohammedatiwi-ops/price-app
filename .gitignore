@@ -17,6 +17,8 @@
 **/*.sqlite
 **/*.sqlite3
 **/data/
+!mobile_app/lib/data/
+!mobile_app/lib/data/**
 
 ## Flutter / Dart
 **/.dart_tool/

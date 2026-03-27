@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'package:mobile_app/presentation/screens/barcode_input_screen.dart';
+import 'package:mobile_app/presentation/screens/scanner_screen.dart';
 import 'package:mobile_app/config/ui_tokens.dart';
 
 void main() {
@@ -10,6 +12,16 @@ void main() {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
+  Widget _resolveHome() {
+    if (kIsWeb) {
+      final mode = Uri.base.queryParameters['mode']?.trim().toLowerCase();
+      if (mode == 'scanner' || mode == 'scan' || mode == 'fast') {
+        return const ScannerScreen();
+      }
+    }
+    return const BarcodeInputScreen();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,9 +60,9 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const Directionality(
+      home: Directionality(
         textDirection: TextDirection.rtl,
-        child: BarcodeInputScreen(),
+        child: _resolveHome(),
       ),
     );
   }
