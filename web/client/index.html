@@ -3,11 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="format-detection" content="telephone=no" />
     <title>تطبيق سعر - ويب</title>
   </head>
   <body>
     <div id="app"></div>
+    <div id="flutterOverlay" class="flutter-overlay hidden" aria-hidden="true">
+      <div class="flutter-overlay-top">
+        <span class="flutter-overlay-title">سريع — Flutter</span>
+        <button type="button" id="closeFlutterOverlayBtn" class="flutter-overlay-close">إغلاق</button>
+      </div>
+      <iframe
+        id="flutterFrame"
+        class="flutter-iframe"
+        title="واجهة Flutter"
+        allow="camera; microphone; fullscreen"
+      ></iframe>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

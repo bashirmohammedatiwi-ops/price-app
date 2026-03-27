@@ -1,5 +1,5 @@
 import './style.css';
-import { BrowserMultiFormatReader, BarcodeFormat } from '@zxing/browser';
+import { BrowserCodeReader, BrowserMultiFormatReader, BarcodeFormat } from '@zxing/browser';
 import { DecodeHintType } from '@zxing/library';
 
 const DEFAULT_URL =
@@ -18,6 +18,13 @@ const isIOS =
   (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 
+function isCameraContextOk() {
+  if (typeof window === 'undefined') return true;
+  if (window.isSecureContext) return true;
+  const host = window.location?.hostname || '';
+  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+}
+
 const app = document.querySelector('#app');
 app.innerHTML = `
   <main class="container">
@@ -28,8 +35,11 @@ app.innerHTML = `
     </header>
 
     <section class="card scanner-card">
-      <div class="quick-actions">
-        <button id="toggleScannerBtn" class="scan-btn">تشغيل الماسح بالكاميرا</button>
+      <div class="scan-two-btns">
+        <button id="toggleScannerBtn" class="scan-btn scan-btn-normal" type="button">عادي</button>
+        <button type="button" id="fastScannerBtn" class="scan-btn scan-btn-fast">سريع</button>
+      </div>
+      <div class="quick-actions quick-actions-extra">
         <button id="switchCameraBtn" class="secondary-btn hidden" type="button">تبديل الكاميرا</button>
         <button id="toggleTorchBtn" class="secondary-btn hidden" type="button">تشغيل الإضاءة</button>
         <div id="cameraLabel" class="camera-label hidden">—</div>
@@ -41,7 +51,7 @@ app.innerHTML = `
       </div>
       <div class="scanner-shell hidden" id="scannerShell">
         <div id="scanRegion" class="scan-region">
-          <video id="${SCAN_VIDEO_ID}" playsinline muted></video>
+          <video id="${SCAN_VIDEO_ID}" playsinline webkit-playsinline muted></video>
         </div>
         <div class="scan-overlay">
           <div class="scan-frame">
@@ -208,11 +218,27 @@ function ensureReader() {
 
 function resetScannerUi() {
   $('scannerShell').classList.add('hidden');
-  $('toggleScannerBtn').textContent = 'تشغيل الماسح بالكاميرا';
+  $('toggleScannerBtn').textContent = 'عادي';
   $('toggleScannerBtn').classList.remove('active');
   $('toggleTorchBtn').classList.add('hidden');
   $('switchCameraBtn').classList.toggle('hidden', state.cameras.length <= 1);
   state.torchOn = false;
+}
+
+function cleanupVideoBetweenAttempts(videoEl) {
+  try {
+    BrowserCodeReader.cleanVideoSource(videoEl);
+  } catch (_) {}
+  try {
+    BrowserCodeReader.releaseAllStreams();
+  } catch (_) {}
+}
+
+function assertCameraAllowedContext() {
+  if (typeof window === 'undefined' || window.isSecureContext) return;
+  const h = String(window.location?.hostname || '');
+  if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.localhost')) return;
+  throw new Error('افتح الصفحة عبر HTTPS (أو localhost) حتى تعمل الكاميرا على iPhone.');
 }
 
 function createDecodeCallback() {
@@ -223,6 +249,8 @@ function createDecodeCallback() {
 }
 
 async function handleDecodeResult(result, controls) {
+  if (state.scannerBusy) return;
+
   const text = result.getText()?.trim();
   if (!text) return;
 
@@ -239,6 +267,7 @@ async function handleDecodeResult(result, controls) {
     } catch (_) {}
     state.scanControls = null;
     state.scannerRunning = false;
+    cleanupVideoBetweenAttempts($(SCAN_VIDEO_ID));
     resetScannerUi();
 
     $('barcodeInput').value = text;
@@ -249,6 +278,7 @@ async function handleDecodeResult(result, controls) {
 }
 
 async function startScannerInternal(cameraIdOverride = null) {
+  assertCameraAllowedContext();
   const reader = ensureReader();
   const videoEl = $(SCAN_VIDEO_ID);
   const deviceId = await resolveSelectedDeviceId(cameraIdOverride);
@@ -268,6 +298,8 @@ async function startScannerInternal(cameraIdOverride = null) {
       return;
     } catch (e) {
       lastErr = e;
+      state.scanControls = null;
+      cleanupVideoBetweenAttempts(videoEl);
     }
   }
 
@@ -308,6 +340,7 @@ async function switchCamera() {
       state.scannerRunning = true;
       state.scannerBusy = false;
       setTorchUi();
+      await applyIosFocusStabilityHints();
       setStatus('تم التبديل إلى الكاميرا التالية.', 'ok');
     } else {
       setStatus('تم اختيار كاميرا جديدة. شغّل الماسح للبدء.', 'ok');
@@ -335,8 +368,81 @@ function setTorchUi() {
   $('toggleTorchBtn').classList.toggle('hidden', hidden);
 }
 
+/**
+ * iPhone/Safari: لا يوجد زر «إيقاف الفوكس نهائياً» في الويب على كل الأجهزة.
+ * نحاول فقط إيقاف التركيز المستمر (AF hunting) عبر focusMode إن كان المسار يدعمه.
+ */
+async function applyIosFocusStabilityHints() {
+  if (!isIOS || !state.scanControls?.streamVideoConstraintsApply) return;
+
+  const apply = async (constraints) => {
+    try {
+      await state.scanControls.streamVideoConstraintsApply(constraints);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  await new Promise((r) => setTimeout(r, 120));
+
+  let caps = null;
+  try {
+    caps = state.scanControls.streamVideoCapabilitiesGet?.((t) => t.kind === 'video');
+  } catch {
+    caps = null;
+  }
+
+  const modes = caps && Array.isArray(caps.focusMode) ? caps.focusMode : null;
+  if (modes && modes.length) {
+    const prefer = ['fixed', 'single-shot', 'manual'];
+    for (const mode of prefer) {
+      if (modes.includes(mode) && (await apply({ advanced: [{ focusMode: mode }] }))) return;
+    }
+    return;
+  }
+
+  await apply({ advanced: [{ focusMode: 'fixed' }] });
+  await apply({ advanced: [{ focusMode: 'single-shot' }] });
+}
+
 function getBackendUrl() {
   return DEFAULT_URL.endsWith('/') ? DEFAULT_URL.slice(0, -1) : DEFAULT_URL;
+}
+
+/** مسار Flutter Web — يجب أن يطابق `public/flutter` و `--base-href /price/flutter/`. */
+function getFlutterWebUrl() {
+  let base = import.meta.env.BASE_URL || '/';
+  if (!base.endsWith('/')) base += '/';
+  return `${window.location.origin}${base}flutter/`;
+}
+
+function openFlutterOverlay() {
+  const overlay = $('flutterOverlay');
+  const frame = $('flutterFrame');
+  if (!overlay || !frame) {
+    window.location.assign(getFlutterWebUrl());
+    return;
+  }
+  frame.removeAttribute('src');
+  frame.src = getFlutterWebUrl();
+  overlay.classList.remove('hidden');
+  overlay.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeFlutterOverlay() {
+  const overlay = $('flutterOverlay');
+  const frame = $('flutterFrame');
+  if (frame) {
+    frame.src = 'about:blank';
+    frame.removeAttribute('src');
+  }
+  if (overlay) {
+    overlay.classList.add('hidden');
+    overlay.setAttribute('aria-hidden', 'true');
+  }
+  document.body.style.overflow = '';
 }
 function setStatus(msg, type = '') {
   const el = $('status');
@@ -425,6 +531,7 @@ async function stopScanner() {
     } catch (_) {}
     state.scanControls = null;
     state.scannerRunning = false;
+    cleanupVideoBetweenAttempts($(SCAN_VIDEO_ID));
     resetScannerUi();
   } finally {
     state.scannerBusy = false;
@@ -434,16 +541,17 @@ async function startScanner() {
   if (state.scannerRunning || state.scannerBusy) return;
   state.scannerBusy = true;
   $('scannerShell').classList.remove('hidden');
-  $('toggleScannerBtn').textContent = 'إيقاف الماسح';
+  $('toggleScannerBtn').textContent = 'إيقاف';
   $('toggleScannerBtn').classList.add('active');
   try {
     await startScannerInternal();
     state.scannerRunning = true;
     setTorchUi();
-    setStatus('الماسح يعمل (ZXing).', 'ok');
+    await applyIosFocusStabilityHints();
+    setStatus('الماسح يعمل — وجّه الكاميرا على الباركود.', 'ok');
   } catch (e) {
     $('scannerShell').classList.add('hidden');
-    $('toggleScannerBtn').textContent = 'تشغيل الماسح بالكاميرا';
+    $('toggleScannerBtn').textContent = 'عادي';
     $('toggleScannerBtn').classList.remove('active');
     setStatus(`تعذر تشغيل الكاميرا: ${e?.message || 'Unknown error'}`, 'error');
   } finally {
@@ -472,6 +580,18 @@ document.addEventListener('visibilitychange', async () => {
   if (document.hidden && state.scannerRunning) {
     await stopScanner();
   }
+});
+
+$('fastScannerBtn')?.addEventListener('click', () => {
+  openFlutterOverlay();
+});
+
+$('closeFlutterOverlayBtn')?.addEventListener('click', () => {
+  closeFlutterOverlay();
+});
+
+$('flutterOverlay')?.addEventListener('click', (e) => {
+  if (e.target === $('flutterOverlay')) closeFlutterOverlay();
 });
 
 renderRecent();

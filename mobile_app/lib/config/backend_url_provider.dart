@@ -7,17 +7,20 @@ class BackendUrlProvider {
   static const String _prefsKey = 'backend_url';
 
   String _defaultBaseUrl() {
-    // Works well for Android Emulator.
+    // Flutter Web: same origin as الصفحة (مثال: /price-api بجانب /price/flutter-web/).
+    if (kIsWeb) {
+      final origin = Uri.base.origin;
+      return '$origin/price-api';
+    }
+
     if (defaultTargetPlatform == TargetPlatform.android) {
       return 'http://187.124.23.65:5000';
     }
 
-    // For iOS/macOS simulators/local dev.
     if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
       return 'http://187.124.23.65:5000';
     }
 
-    // Web/others.
     return 'http://187.124.23.65:5000';
   }
 

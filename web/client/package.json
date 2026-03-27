@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "flutter-web:build": "cd ../../mobile_app && flutter build web --base-href /price/flutter/ && rm -rf ../web/client/public/flutter && cp -R build/web ../web/client/public/flutter"
   },
   "dependencies": {
     "@zxing/browser": "^0.1.5",
