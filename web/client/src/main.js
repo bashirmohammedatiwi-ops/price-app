@@ -59,11 +59,6 @@ const ENGINE_OPTIONS = [
     label: 'ZXing Library',
     hint: 'ZXing Library مباشرة (canvas decoding)',
   },
-  {
-    id: 'flutterWeb',
-    label: 'Flutter Web',
-    hint: 'مكتبة Flutter Scanner (mobile_scanner) داخل ويب',
-  },
 ];
 
 const app = document.querySelector('#app');
@@ -77,7 +72,7 @@ app.innerHTML = `
     <header class="header">
       <div class="app-chip">Price Mobile</div>
       <h1>سعر</h1>
-      <p>اختبر 6 مكتبات مسح مختلفة واختر الأفضل خصوصًا للـ iPhone</p>
+      <p>اختبر 5 مكتبات مسح مختلفة واختر الأفضل خصوصًا للـ iPhone</p>
     </header>
 
     <section class="card scanner-card">
@@ -91,41 +86,6 @@ app.innerHTML = `
       </div>
       <div id="engineHint" class="engine-hint">${ENGINE_OPTIONS[0].hint}</div>
 
-      <div class="camera-settings">
-        <div class="camera-settings-title">إعدادات الكاميرا (خاصة بكل مكتبة)</div>
-        <div class="camera-settings-grid">
-          <label class="field-inline" for="qualityTierSelect">
-            <span>الدقة</span>
-            <select id="qualityTierSelect">
-              <option value="primary">عالية</option>
-              <option value="fallback">متوسطة</option>
-              <option value="minimal">منخفضة</option>
-            </select>
-          </label>
-          <label class="field-inline" for="focusModeSelect">
-            <span>نمط الفوكس</span>
-            <select id="focusModeSelect">
-              <option value="continuous">مستمر</option>
-              <option value="single-shot">لقطة واحدة</option>
-              <option value="fixed">ثابت</option>
-              <option value="manual">يدوي</option>
-            </select>
-          </label>
-          <label class="field-inline">
-            <span>FPS: <b id="fpsValue">24</b></span>
-            <input id="fpsRange" type="range" min="8" max="30" step="1" value="24" />
-          </label>
-          <label class="field-inline">
-            <span>Zoom: <b id="zoomValue">1.0x</b></span>
-            <input id="zoomRange" type="range" min="1" max="5" step="0.1" value="1" />
-          </label>
-        </div>
-        <label class="tap-focus-option">
-          <input id="tapFocusToggle" type="checkbox" checked />
-          <span>تفعيل فوكس بالضغط على الشاشة</span>
-        </label>
-      </div>
-
       <div class="quick-actions quick-actions-extra">
         <button id="switchCameraBtn" class="secondary-btn hidden" type="button">تبديل الكاميرا</button>
         <button id="toggleTorchBtn" class="secondary-btn hidden" type="button">تشغيل الإضاءة</button>
@@ -138,7 +98,6 @@ app.innerHTML = `
       </div>
       <div class="scanner-shell hidden" id="scannerShell">
         <div id="${SCAN_REGION_ID}" class="scan-region"></div>
-        <div id="focusReticle" class="focus-reticle hidden"></div>
         <div class="scan-overlay">
           <div class="scan-frame">
             <span class="corner tl"></span>
@@ -191,8 +150,6 @@ const state = {
   manualCanvas: null,
   manualCtx: null,
   setTorchFn: null,
-  focusReticleTimer: null,
-  engineCameraSettings: JSON.parse(JSON.stringify(ENGINE_CAMERA_DEFAULTS)),
 };
 
 const POSSIBLE_FORMATS = [
@@ -223,57 +180,6 @@ const QUAGGA_READERS = [
 ];
 
 const BARCODE_DETECTOR_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39'];
-
-const ENGINE_CAMERA_DEFAULTS = {
-  zxingBrowser: {
-    tier: 'primary',
-    fps: isIOS ? 20 : 24,
-    zoom: 1,
-    focusMode: isIOS ? 'single-shot' : 'continuous',
-    tapFocus: true,
-    aspectRatio: isIOS ? 1.3333333 : 1.7777778,
-  },
-  html5Qrcode: {
-    tier: 'primary',
-    fps: isIOS ? 14 : 18,
-    zoom: 1,
-    focusMode: isIOS ? 'single-shot' : 'continuous',
-    tapFocus: true,
-    aspectRatio: isIOS ? 1.3333333 : 1.7777778,
-  },
-  quagga2: {
-    tier: 'primary',
-    fps: isIOS ? 18 : 22,
-    zoom: 1,
-    focusMode: isIOS ? 'single-shot' : 'continuous',
-    tapFocus: true,
-    aspectRatio: isIOS ? 1.3333333 : 1.7777778,
-  },
-  barcodeDetector: {
-    tier: 'primary',
-    fps: isIOS ? 22 : 28,
-    zoom: 1,
-    focusMode: isIOS ? 'single-shot' : 'continuous',
-    tapFocus: true,
-    aspectRatio: isIOS ? 1.3333333 : 1.7777778,
-  },
-  zxingLibrary: {
-    tier: 'primary',
-    fps: isIOS ? 20 : 24,
-    zoom: 1,
-    focusMode: isIOS ? 'single-shot' : 'continuous',
-    tapFocus: true,
-    aspectRatio: isIOS ? 1.3333333 : 1.7777778,
-  },
-  flutterWeb: {
-    tier: 'primary',
-    fps: 24,
-    zoom: 1,
-    focusMode: 'continuous',
-    tapFocus: true,
-    aspectRatio: isIOS ? 1.3333333 : 1.7777778,
-  },
-};
 
 if (typeof window !== 'undefined' && typeof window.BarcodeDetector === 'undefined') {
   window.BarcodeDetector = BarcodeDetectorPolyfill;
@@ -332,179 +238,6 @@ function updateEngineUi() {
   });
 }
 
-function getEngineCameraSettings(engineId = state.selectedEngineId) {
-  return state.engineCameraSettings[engineId] || ENGINE_CAMERA_DEFAULTS[engineId] || ENGINE_CAMERA_DEFAULTS.zxingBrowser;
-}
-
-function setEngineCameraSettings(patch, engineId = state.selectedEngineId) {
-  const previous = getEngineCameraSettings(engineId);
-  state.engineCameraSettings[engineId] = { ...previous, ...patch };
-}
-
-function updateCameraSettingsUi() {
-  const settings = getEngineCameraSettings();
-  const isFlutterEngine = state.selectedEngineId === 'flutterWeb';
-
-  const tierEl = $('qualityTierSelect');
-  const fpsEl = $('fpsRange');
-  const fpsValueEl = $('fpsValue');
-  const zoomEl = $('zoomRange');
-  const zoomValueEl = $('zoomValue');
-  const focusModeEl = $('focusModeSelect');
-  const tapFocusEl = $('tapFocusToggle');
-
-  if (tierEl) tierEl.value = settings.tier;
-  if (fpsEl) fpsEl.value = String(settings.fps);
-  if (fpsValueEl) fpsValueEl.textContent = String(settings.fps);
-  if (zoomEl) zoomEl.value = Number(settings.zoom || 1).toFixed(1);
-  if (zoomValueEl) zoomValueEl.textContent = `${Number(settings.zoom || 1).toFixed(1)}x`;
-  if (focusModeEl) focusModeEl.value = settings.focusMode || 'continuous';
-  if (tapFocusEl) tapFocusEl.checked = Boolean(settings.tapFocus);
-
-  [tierEl, fpsEl, zoomEl, focusModeEl, tapFocusEl].forEach((el) => {
-    if (!el) return;
-    el.disabled = isFlutterEngine;
-  });
-}
-
-function getScanVideoElement() {
-  return $(SCAN_VIDEO_ID) || document.querySelector(`#${SCAN_REGION_ID} video`);
-}
-
-function syncMediaStreamFromDom() {
-  const videoEl = getScanVideoElement();
-  const stream = videoEl?.srcObject;
-  if (stream instanceof MediaStream) {
-    state.mediaStream = stream;
-    return stream;
-  }
-  return null;
-}
-
-function getActiveVideoTrack() {
-  const trackFromState = state.mediaStream?.getVideoTracks?.()?.[0] || null;
-  if (trackFromState) return trackFromState;
-  const stream = syncMediaStreamFromDom();
-  return stream?.getVideoTracks?.()?.[0] || null;
-}
-
-function clamp(num, min, max) {
-  return Math.max(min, Math.min(max, num));
-}
-
-function mapFocusModeToSupported(requestedMode, supportedModes = []) {
-  if (!supportedModes.length) return null;
-  if (supportedModes.includes(requestedMode)) return requestedMode;
-
-  if (requestedMode === 'continuous' && supportedModes.includes('auto')) return 'auto';
-  if (requestedMode === 'auto' && supportedModes.includes('continuous')) return 'continuous';
-  if (requestedMode === 'single-shot' && supportedModes.includes('manual')) return 'manual';
-
-  const priority = ['continuous', 'auto', 'single-shot', 'fixed', 'manual'];
-  for (const mode of priority) {
-    if (supportedModes.includes(mode)) return mode;
-  }
-  return supportedModes[0] || null;
-}
-
-function showFocusReticle(normX, normY) {
-  const shell = $('scannerShell');
-  const marker = $('focusReticle');
-  const region = $(SCAN_REGION_ID);
-  if (!shell || !marker || !region) return;
-
-  const rect = region.getBoundingClientRect();
-  const x = clamp(normX, 0, 1) * rect.width;
-  const y = clamp(normY, 0, 1) * rect.height;
-  marker.style.left = `${Math.round(rect.left - shell.getBoundingClientRect().left + x)}px`;
-  marker.style.top = `${Math.round(rect.top - shell.getBoundingClientRect().top + y)}px`;
-  marker.classList.remove('hidden');
-  marker.classList.add('active');
-  window.clearTimeout(state.focusReticleTimer);
-  state.focusReticleTimer = window.setTimeout(() => {
-    marker.classList.remove('active');
-    marker.classList.add('hidden');
-  }, 700);
-}
-
-async function applyLiveCameraTuning({ tapPoint = null } = {}) {
-  if (!state.scannerRunning || state.activeEngineId === 'flutterWeb') return;
-
-  let track = getActiveVideoTrack();
-  if (!track || typeof track.applyConstraints !== 'function') {
-    await new Promise((r) => setTimeout(r, 120));
-    track = getActiveVideoTrack();
-  }
-  if (!track || typeof track.applyConstraints !== 'function') {
-    if (state.activeEngineId === 'html5Qrcode' && state.html5Scanner && typeof state.html5Scanner.applyVideoConstraints === 'function') {
-      const settings = getEngineCameraSettings();
-      const advanced = {};
-      if (Number.isFinite(Number(settings.zoom))) advanced.zoom = Number(settings.zoom);
-      if (settings.focusMode) advanced.focusMode = settings.focusMode;
-      if (tapPoint && settings.tapFocus) {
-        advanced.pointsOfInterest = [{ x: clamp(tapPoint.x, 0, 1), y: clamp(tapPoint.y, 0, 1) }];
-      }
-      if (Object.keys(advanced).length) {
-        try {
-          await state.html5Scanner.applyVideoConstraints({ advanced: [advanced] });
-        } catch (_) {}
-      }
-    }
-    return;
-  }
-
-  const settings = getEngineCameraSettings();
-  const caps = track.getCapabilities?.() || {};
-  const advanced = {};
-
-  if (caps.zoom && Number.isFinite(Number(settings.zoom))) {
-    const min = Number(caps.zoom.min ?? 1);
-    const max = Number(caps.zoom.max ?? settings.zoom);
-    advanced.zoom = clamp(Number(settings.zoom), min, max);
-  }
-
-  const supportedFocusModes = Array.isArray(caps.focusMode) ? caps.focusMode : [];
-  const focusMode = mapFocusModeToSupported(settings.focusMode, supportedFocusModes);
-  if (focusMode) {
-    advanced.focusMode = focusMode;
-  }
-
-  if (tapPoint && settings.tapFocus) {
-    if (caps.pointsOfInterest) {
-      advanced.pointsOfInterest = [{ x: clamp(tapPoint.x, 0, 1), y: clamp(tapPoint.y, 0, 1) }];
-      if (supportedFocusModes.includes('single-shot')) {
-        advanced.focusMode = 'single-shot';
-      }
-    } else if (!advanced.focusMode && supportedFocusModes.includes('single-shot')) {
-      advanced.focusMode = 'single-shot';
-    }
-  }
-
-  if (!Object.keys(advanced).length) return;
-  try {
-    await track.applyConstraints({ advanced: [advanced] });
-  } catch (_) {
-    // Ignore unsupported camera constraints for this browser/device.
-  }
-}
-
-async function handleTapToFocus(clientX, clientY) {
-  if (!state.scannerRunning || state.activeEngineId === 'flutterWeb') return;
-  const settings = getEngineCameraSettings();
-  if (!settings.tapFocus) return;
-
-  const region = $(SCAN_REGION_ID);
-  if (!region) return;
-  const rect = region.getBoundingClientRect();
-  if (!rect.width || !rect.height) return;
-
-  const x = clamp((clientX - rect.left) / rect.width, 0, 1);
-  const y = clamp((clientY - rect.top) / rect.height, 0, 1);
-  showFocusReticle(x, y);
-  await applyLiveCameraTuning({ tapPoint: { x, y } });
-  setStatus('تم إرسال طلب فوكس على النقطة المحددة.', 'ok');
-}
-
 function setScanButtonsState(running, fastMode = false) {
   const normalBtn = $('toggleScannerBtn');
   const fastBtn = $('fastScannerBtn');
@@ -550,15 +283,6 @@ async function setTorch(on) {
 
 function getBackendUrl() {
   return DEFAULT_URL.endsWith('/') ? DEFAULT_URL.slice(0, -1) : DEFAULT_URL;
-}
-
-function getFlutterWebUrl(mode = 'normal') {
-  const base = '/price/flutter/index.html';
-  const url = new URL(base, window.location.origin);
-  url.searchParams.set('mode', 'scanner');
-  url.searchParams.set('speed', mode === 'fast' ? 'fast' : 'normal');
-  url.searchParams.set('t', String(Date.now()));
-  return url.toString();
 }
 
 function loadRecent() {
@@ -753,8 +477,7 @@ async function resolveSelectedDeviceId(cameraIdOverride = null) {
 
 function getEngineConstraints(deviceId, tier = 'primary') {
   const engine = state.selectedEngineId;
-  const cameraSettings = getEngineCameraSettings(engine);
-  const selectedTier = cameraSettings.tier || tier;
+  const isFast = state.fastMode;
 
   // Make each library use visibly different settings.
   const presets = {
@@ -786,31 +509,12 @@ function getEngineConstraints(deviceId, tier = 'primary') {
   };
 
   const preset = presets[engine] || presets.zxingBrowser;
-  const selected = preset[selectedTier] || preset[tier] || preset.primary;
-  const frameRate = Number(cameraSettings.fps || 0);
+  const selected = preset[tier] || preset.primary;
 
   if (deviceId) {
-    const video = {
-      width: { ideal: selected.w },
-      height: { ideal: selected.h },
-      deviceId: { exact: deviceId },
-    };
-    if (frameRate > 0) video.frameRate = { ideal: frameRate };
-    if (cameraSettings.aspectRatio) video.aspectRatio = cameraSettings.aspectRatio;
-    return {
-      video,
-    };
+    return { video: { width: { ideal: selected.w }, height: { ideal: selected.h }, deviceId: { exact: deviceId } } };
   }
-  const video = {
-    width: { ideal: selected.w },
-    height: { ideal: selected.h },
-    facingMode: { ideal: 'environment' },
-  };
-  if (frameRate > 0) video.frameRate = { ideal: frameRate };
-  if (cameraSettings.aspectRatio) video.aspectRatio = cameraSettings.aspectRatio;
-  return {
-    video,
-  };
+  return { video: { width: { ideal: selected.w }, height: { ideal: selected.h }, facingMode: { ideal: 'environment' } } };
 }
 
 function ensureReader() {
@@ -855,7 +559,6 @@ async function startWithZxingBrowser(deviceId) {
   for (const tier of tiers) {
     try {
       state.scanControls = await reader.decodeFromConstraints(getEngineConstraints(deviceId, tier), videoEl, callback);
-      syncMediaStreamFromDom();
       state.setTorchFn = typeof state.scanControls?.switchTorch === 'function'
         ? async (on) => state.scanControls.switchTorch(on)
         : null;
@@ -876,16 +579,15 @@ async function startWithHtml5Qrcode(deviceId) {
     verbose: false,
   });
 
-  const cameraSettings = getEngineCameraSettings('html5Qrcode');
   const scanBox = isIOS ? IOS_SCAN_BOX : DEFAULT_SCAN_BOX;
   $('scannerShell').style.setProperty('--scan-box-w', `${scanBox.width}px`);
   $('scannerShell').style.setProperty('--scan-box-h', `${scanBox.height}px`);
 
   const config = {
-    fps: Math.max(8, Math.min(30, Number(cameraSettings.fps || (state.fastMode ? 20 : isIOS ? 12 : 16)))),
+    fps: state.fastMode ? 20 : isIOS ? 12 : 16,
     qrbox: scanBox,
     disableFlip: true,
-    aspectRatio: cameraSettings.aspectRatio || (isIOS ? 1.3333333 : 1.7777778),
+    aspectRatio: isIOS ? 1.3333333 : 1.7777778,
     videoConstraints: getEngineConstraints(deviceId, 'primary').video,
     experimentalFeatures: { useBarCodeDetectorIfSupported: true },
   };
@@ -902,7 +604,6 @@ async function startWithHtml5Qrcode(deviceId) {
   );
 
   state.html5Scanner = scanner;
-  syncMediaStreamFromDom();
   state.setTorchFn = async (on) => {
     try {
       await scanner.applyVideoConstraints({ advanced: [{ torch: on }] });
@@ -952,7 +653,6 @@ async function startWithQuagga2(deviceId) {
   state.quaggaDetectedHandler = onDetected;
   Quagga.onDetected(onDetected);
   Quagga.start();
-  syncMediaStreamFromDom();
 
   state.setTorchFn = null;
   state.activeEngineId = 'quagga2';
@@ -1059,11 +759,6 @@ async function startWithZxingLibrary(deviceId) {
   state.detectorRaf = requestAnimationFrame(loop);
 }
 
-async function startWithFlutterWeb() {
-  const url = getFlutterWebUrl(state.fastMode ? 'fast' : 'normal');
-  window.location.assign(url);
-}
-
 async function startSelectedEngine(deviceId) {
   const engine = state.selectedEngineId;
   if (engine === 'zxingBrowser') return startWithZxingBrowser(deviceId);
@@ -1071,7 +766,6 @@ async function startSelectedEngine(deviceId) {
   if (engine === 'quagga2') return startWithQuagga2(deviceId);
   if (engine === 'barcodeDetector') return startWithBarcodeDetector(deviceId);
   if (engine === 'zxingLibrary') return startWithZxingLibrary(deviceId);
-  if (engine === 'flutterWeb') return startWithFlutterWeb();
   throw new Error('محرك غير معروف');
 }
 
@@ -1098,9 +792,7 @@ async function applyIosFocusStabilityHints() {
 
   const modes = caps && Array.isArray(caps.focusMode) ? caps.focusMode : null;
   if (modes && modes.length) {
-    const requested = getEngineCameraSettings().focusMode;
-    const mappedRequested = mapFocusModeToSupported(requested, modes);
-    const prefer = [mappedRequested, 'fixed', 'single-shot', 'manual', 'continuous'].filter(Boolean);
+    const prefer = ['fixed', 'single-shot', 'manual'];
     for (const mode of prefer) {
       if (modes.includes(mode) && (await apply({ advanced: [{ focusMode: mode }] }))) return;
     }
@@ -1120,8 +812,6 @@ async function stopScanner() {
     await stopActiveEngine();
     state.scannerRunning = false;
     state.torchOn = false;
-    window.clearTimeout(state.focusReticleTimer);
-    $('focusReticle')?.classList.add('hidden');
     $('scannerShell').classList.add('hidden');
     setScanButtonsState(false, false);
     $('toggleTorchBtn').classList.add('hidden');
@@ -1141,28 +831,21 @@ async function startScanner(mode = 'normal', cameraIdOverride = null) {
 
   state.fastMode = mode === 'fast';
   state.scannerBusy = true;
-  const isFlutterEngine = state.selectedEngineId === 'flutterWeb';
-  $('scannerShell').classList.toggle('hidden', isFlutterEngine);
+  $('scannerShell').classList.remove('hidden');
   setScanButtonsState(true, state.fastMode);
 
   try {
-    let deviceId = null;
-    if (!isFlutterEngine) {
-      assertCameraAllowedContext();
-      deviceId = await resolveSelectedDeviceId(cameraIdOverride);
+    assertCameraAllowedContext();
+    const deviceId = await resolveSelectedDeviceId(cameraIdOverride);
 
-      const box = isIOS ? IOS_SCAN_BOX : DEFAULT_SCAN_BOX;
-      $('scannerShell').style.setProperty('--scan-box-w', `${box.width}px`);
-      $('scannerShell').style.setProperty('--scan-box-h', `${box.height}px`);
-    }
+    const box = isIOS ? IOS_SCAN_BOX : DEFAULT_SCAN_BOX;
+    $('scannerShell').style.setProperty('--scan-box-w', `${box.width}px`);
+    $('scannerShell').style.setProperty('--scan-box-h', `${box.height}px`);
 
     await startSelectedEngine(deviceId);
     state.scannerRunning = true;
     setTorchUi();
-    if (!isFlutterEngine) {
-      await applyLiveCameraTuning();
-      await applyIosFocusStabilityHints();
-    }
+    await applyIosFocusStabilityHints();
     setStatus(`الماسح يعمل عبر ${getEngineById(state.selectedEngineId).label}.`, 'ok');
   } catch (e) {
     await stopActiveEngine();
@@ -1210,7 +893,6 @@ async function setEngine(engineId) {
 
   state.selectedEngineId = engineId;
   updateEngineUi();
-  updateCameraSettingsUi();
 
   if (state.scannerRunning) {
     await startScanner(state.fastMode ? 'fast' : 'normal');
@@ -1246,51 +928,6 @@ $('switchCameraBtn').addEventListener('click', async () => {
   await switchCamera();
 });
 
-const onCameraSettingsChanged = async ({ restart = false } = {}) => {
-  if (!state.scannerRunning) return;
-  if (restart) {
-    await startScanner(state.fastMode ? 'fast' : 'normal');
-    return;
-  }
-  await applyLiveCameraTuning();
-};
-
-$('qualityTierSelect')?.addEventListener('change', async (e) => {
-  setEngineCameraSettings({ tier: e.target.value });
-  await onCameraSettingsChanged({ restart: true });
-});
-
-$('focusModeSelect')?.addEventListener('change', async (e) => {
-  setEngineCameraSettings({ focusMode: e.target.value });
-  await onCameraSettingsChanged({ restart: false });
-});
-
-$('fpsRange')?.addEventListener('input', (e) => {
-  const fps = Number(e.target.value || 24);
-  $('fpsValue').textContent = String(fps);
-  setEngineCameraSettings({ fps });
-});
-
-$('fpsRange')?.addEventListener('change', async () => {
-  await onCameraSettingsChanged({ restart: true });
-});
-
-$('zoomRange')?.addEventListener('input', async (e) => {
-  const zoom = Number(e.target.value || 1);
-  $('zoomValue').textContent = `${zoom.toFixed(1)}x`;
-  setEngineCameraSettings({ zoom });
-  await onCameraSettingsChanged({ restart: false });
-});
-
-$('tapFocusToggle')?.addEventListener('change', (e) => {
-  setEngineCameraSettings({ tapFocus: e.target.checked });
-});
-
-$('scannerShell')?.addEventListener('pointerup', async (e) => {
-  if (e.pointerType === 'mouse' && e.button !== 0) return;
-  await handleTapToFocus(e.clientX, e.clientY);
-});
-
 document.querySelectorAll('.engine-btn').forEach((btn) => {
   btn.addEventListener('click', async () => {
     await setEngine(btn.dataset.engineId);
@@ -1304,6 +941,5 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 updateEngineUi();
-updateCameraSettingsUi();
 resetScanRegionToVideo();
 renderRecent();
