@@ -553,31 +553,12 @@ function getBackendUrl() {
 }
 
 function getFlutterWebUrl(mode = 'normal') {
-  const base = '/price/flutter/';
+  const base = '/price/flutter/index.html';
   const url = new URL(base, window.location.origin);
   url.searchParams.set('mode', 'scanner');
   url.searchParams.set('speed', mode === 'fast' ? 'fast' : 'normal');
+  url.searchParams.set('t', String(Date.now()));
   return url.toString();
-}
-
-function openFlutterOverlay(mode = 'normal') {
-  const overlay = $('flutterOverlay');
-  const frame = $('flutterFrame');
-  if (!overlay || !frame) throw new Error('واجهة Flutter غير متاحة.');
-  frame.src = getFlutterWebUrl(mode);
-  overlay.classList.remove('hidden');
-  overlay.setAttribute('aria-hidden', 'false');
-  document.body.classList.add('no-scroll');
-}
-
-function closeFlutterOverlay() {
-  const overlay = $('flutterOverlay');
-  const frame = $('flutterFrame');
-  if (!overlay || !frame) return;
-  overlay.classList.add('hidden');
-  overlay.setAttribute('aria-hidden', 'true');
-  frame.src = 'about:blank';
-  document.body.classList.remove('no-scroll');
 }
 
 function loadRecent() {
@@ -722,8 +703,6 @@ async function stopActiveEngine() {
       if (state.detectorRaf) cancelAnimationFrame(state.detectorRaf);
       state.detectorRaf = null;
       stopMediaStream();
-    } else if (state.activeEngineId === 'flutterWeb') {
-      closeFlutterOverlay();
     }
   } finally {
     clearEngineRuntimeHandles();
@@ -1081,8 +1060,8 @@ async function startWithZxingLibrary(deviceId) {
 }
 
 async function startWithFlutterWeb() {
-  openFlutterOverlay(state.fastMode ? 'fast' : 'normal');
-  state.activeEngineId = 'flutterWeb';
+  const url = getFlutterWebUrl(state.fastMode ? 'fast' : 'normal');
+  window.location.assign(url);
 }
 
 async function startSelectedEngine(deviceId) {
@@ -1321,23 +1300,6 @@ document.querySelectorAll('.engine-btn').forEach((btn) => {
 document.addEventListener('visibilitychange', async () => {
   if (document.hidden && state.scannerRunning) {
     await stopScanner();
-  }
-});
-
-$('closeFlutterOverlayBtn')?.addEventListener('click', async () => {
-  if (state.scannerRunning && state.activeEngineId === 'flutterWeb') {
-    await stopScanner();
-  } else {
-    closeFlutterOverlay();
-  }
-});
-
-$('flutterOverlay')?.addEventListener('click', async (e) => {
-  if (e.target !== e.currentTarget) return;
-  if (state.scannerRunning && state.activeEngineId === 'flutterWeb') {
-    await stopScanner();
-  } else {
-    closeFlutterOverlay();
   }
 });
 
