@@ -138,6 +138,47 @@ button.primary {
   font-weight: 700;
   color: #475569;
 }
+.camera-settings {
+  margin: 0 0 10px;
+  padding: 10px;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: #f8fbff;
+}
+.camera-settings-title {
+  font-size: 12px;
+  font-weight: 900;
+  color: #1e3a8a;
+  margin-bottom: 8px;
+}
+.camera-settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.field-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: #334155;
+}
+.field-inline select,
+.field-inline input[type='range'] {
+  width: 100%;
+}
+.tap-focus-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #334155;
+}
+.tap-focus-option input {
+  width: 16px;
+  height: 16px;
+}
 .scan-btn-fast {
   background: linear-gradient(135deg, #059669, #0d9488);
   box-shadow: 0 10px 18px rgba(5, 150, 105, 0.28);
@@ -167,6 +208,25 @@ button.primary {
   border: 1px solid #cbd5e1;
   background: #0b1220;
   min-height: 250px;
+}
+.focus-reticle {
+  position: absolute;
+  width: 58px;
+  height: 58px;
+  border: 2px solid rgba(34, 211, 238, 0.95);
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.8);
+  opacity: 0;
+  z-index: 3;
+}
+.focus-reticle.active {
+  animation: focusPop 0.7s ease forwards;
+}
+@keyframes focusPop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.08); }
 }
 .scan-region {
   width: 100%;
@@ -259,6 +319,46 @@ button.primary {
 .status.error { color: #be123c; }
 
 .hidden { display: none; }
+body.no-scroll {
+  overflow: hidden;
+}
+.flutter-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(2, 6, 23, 0.92);
+  display: flex;
+  flex-direction: column;
+}
+.flutter-overlay-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.9);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+}
+.flutter-overlay-title {
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 900;
+}
+.flutter-overlay-close {
+  border-radius: 10px;
+  padding: 7px 12px;
+  background: #ef4444;
+  border: 1px solid transparent;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+.flutter-iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #020617;
+}
 .recent-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {
   border-radius: 999px;
