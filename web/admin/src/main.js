@@ -390,6 +390,19 @@ function formatPrice(price) {
   return n.toFixed(2);
 }
 
+function formatDateTime(value) {
+  if (value == null || String(value).trim() === '') return '—';
+  const s = String(value).trim();
+  const normalized = /^\d{4}-\d{2}-\d{2} \d/.test(s) ? s.replace(' ', 'T') : s;
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) return s;
+  try {
+    return d.toLocaleString('ar', { dateStyle: 'medium', timeStyle: 'short' });
+  } catch {
+    return s;
+  }
+}
+
 function renderImportSummary() {
   const box = $('importSummary');
   if (!box) return;
@@ -451,7 +464,7 @@ function renderGroups() {
       <div class="list-item ${state.selectedGroupName === g.source_name ? 'active' : ''}" data-group-name="${g.source_name}">
         <div class="list-item-main">
           <div class="list-item-title">${g.source_name} <span class="template-pill ${g.has_template ? 'ok' : 'warn'}">${g.has_template ? 'قالب محفوظ' : 'بدون قالب'}</span></div>
-          <div class="list-item-meta">منتجات: ${g.products_count} | صفوف: ${g.source_rows_count}</div>
+          <div class="list-item-meta">منتجات: ${g.products_count} | صفوف: ${g.source_rows_count} | آخر تحديث: ${formatDateTime(g.last_updated_at)}</div>
         </div>
         <div class="list-item-actions">
           <button type="button" class="mini-btn group-rename-btn" data-group-name="${g.source_name}">تعديل</button>
@@ -538,7 +551,7 @@ function renderGroupProducts() {
         <div class="list-item">
           <div class="list-item-main">
             <div class="list-item-title">${p.barcode} - ${p.name || 'بدون اسم'}</div>
-            <div class="list-item-meta">السعر: ${formatPrice(p.price)}</div>
+            <div class="list-item-meta">السعر: ${formatPrice(p.price)} | تاريخ السعر: ${formatDateTime(p.updated_at)}</div>
             <div class="edit-grid">
               <input class="gp-name" data-barcode="${p.barcode}" type="text" value="${p.name || ''}" placeholder="اسم المنتج" />
               <input class="gp-price" data-barcode="${p.barcode}" type="number" step="0.01" value="${formatPrice(p.price)}" />
@@ -615,7 +628,7 @@ function renderAllProducts() {
       <div class="list-item">
         <div class="list-item-main">
           <div class="list-item-title">${p.barcode}</div>
-          <div class="list-item-meta">مجموعات: ${p.groups_count} | ${formatPrice(p.min_price)} - ${formatPrice(p.max_price)}</div>
+          <div class="list-item-meta">مجموعات: ${p.groups_count} | ${formatPrice(p.min_price)} - ${formatPrice(p.max_price)} | تاريخ المنتج: ${formatDateTime(p.updated_at)}</div>
           <input class="ap-name" data-barcode="${p.barcode}" type="text" value="${p.name || ''}" placeholder="اسم المنتج" />
         </div>
         <div class="list-item-actions">
