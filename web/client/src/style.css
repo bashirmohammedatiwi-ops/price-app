@@ -1,196 +1,338 @@
-body {
-  margin: 0;
-  font-family: "Cairo", "Segoe UI", Tahoma, Arial, sans-serif;
-  background:
-    radial-gradient(1200px circle at 100% -10%, rgba(99, 102, 241, 0.14), transparent 45%),
-    radial-gradient(900px circle at -10% 30%, rgba(14, 165, 233, 0.16), transparent 45%),
-    linear-gradient(180deg, #e0f2fe 0%, #f8fafc 25%, #f8fafc 100%);
-  color: #0f172a;
-  direction: rtl;
+/**
+ * تطبيق سعر — واجهة الزبون (Neo-Brutalist)
+ */
+
+:root {
+  --ink: #0a0a0a;
+  --paper: #fffef6;
+  --panel: #ffffff;
+  --accent: #ff4d00;
+  --accent-soft: #ffe8db;
+  --lime: #d4ff00;
+  --border: #0a0a0a;
+  --muted: #404040;
+  --ok: #15803d;
+  --warn: #a16207;
+  --err: #b91c1c;
+  --shadow: 5px 5px 0 var(--ink);
+  --shadow-sm: 3px 3px 0 var(--ink);
+  --radius: 8px;
+  --font: "Cairo", "Segoe UI", system-ui, sans-serif;
 }
 
-.container {
-  width: min(470px, 100%);
-  margin: 0 auto;
-  padding: 14px 14px 30px;
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
-.header { padding: 12px 8px 16px; }
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--font);
+  direction: rtl;
+  text-align: right;
+  color: var(--ink);
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(90deg, rgba(10, 10, 10, 0.06) 1px, transparent 1px),
+    linear-gradient(rgba(10, 10, 10, 0.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.container {
+  width: min(520px, 100%);
+  margin: 0 auto;
+  padding: 16px 16px 36px;
+  padding-bottom: max(36px, env(safe-area-inset-bottom));
+}
+
+/* ——— Header ——— */
+.header {
+  padding: 8px 4px 18px;
+}
+
 .app-chip {
   display: inline-block;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(37, 99, 235, 0.12);
-  color: #1d4ed8;
-  font-size: 12px;
-  font-weight: 800;
-  margin-bottom: 8px;
-}
-.header h1 {
-  margin: 0 0 4px;
-  font-size: 38px;
+  padding: 6px 12px;
+  margin-bottom: 10px;
+  font-size: 0.72rem;
   font-weight: 900;
-  letter-spacing: -0.8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--lime);
+  color: var(--ink);
+  border: 3px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
 }
+
+.header h1 {
+  margin: 0 0 6px;
+  font-size: clamp(2rem, 8vw, 2.75rem);
+  font-weight: 950;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
 .header p {
   margin: 0;
-  color: #64748b;
-  font-size: 14px;
+  font-size: 0.88rem;
   font-weight: 700;
+  color: var(--muted);
+  line-height: 1.45;
 }
 
+/* ——— Cards ——— */
 .card {
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(15, 23, 42, 0.09);
-  border-radius: 22px;
+  background: var(--panel);
+  border: 3px solid var(--border);
+  border-radius: var(--radius);
   padding: 16px;
   margin-bottom: 14px;
-  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow);
 }
-.card h2 { margin: 0 0 10px; font-size: 16px; font-weight: 900; }
 
-.row { display: flex; flex-direction: column; gap: 10px; margin: 10px 0; }
-label { font-size: 13px; font-weight: 800; color: #334155; }
-input {
-  border: 1px solid #cbd5e1;
-  border-radius: 14px;
-  padding: 13px;
-  font-size: 16px;
-  background: #fff;
+.card h2 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 950;
+  padding-bottom: 8px;
+  border-bottom: 3px solid var(--border);
+}
+
+.scanner-card {
+  position: relative;
+}
+
+/* ——— Forms ——— */
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+label {
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+input[type="text"] {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 1rem;
+  font-family: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--paper);
+  border: 3px solid var(--border);
+  border-radius: var(--radius);
 }
 
 button {
-  border: 1px solid #d1d5db;
-  border-radius: 14px;
-  padding: 13px 14px;
-  background: #fff;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 900;
   cursor: pointer;
-  font-weight: 800;
-  font-size: 15px;
-  transition: all 0.2s ease;
-}
-button:active { transform: scale(0.98); }
-button.primary {
-  background: linear-gradient(135deg, #0f172a, #1f2937);
-  color: #fff;
-  border-color: transparent;
+  color: var(--ink);
+  background: var(--panel);
+  border: 3px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.06s ease, box-shadow 0.06s ease;
 }
 
-.quick-actions { display: grid; grid-template-columns: 1fr; margin-bottom: 8px; }
-.scan-btn {
-  background: linear-gradient(135deg, #06b6d4, #2563eb);
-  border-color: transparent;
+button:hover:not(:disabled) {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--border);
+}
+
+button:active:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 var(--border);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+button.primary {
+  background: var(--accent);
   color: #fff;
-  box-shadow: 0 12px 20px rgba(37, 99, 235, 0.2);
-}
-.scan-btn.active {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  box-shadow: 0 12px 20px rgba(220, 38, 38, 0.22);
-}
-.secondary-btn {
-  margin-top: 8px;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  color: #1e293b;
-}
-.camera-label {
-  margin-top: 6px;
-  font-size: 12px;
-  font-weight: 800;
-  color: #334155;
-  background: #eef2ff;
-  border: 1px solid #c7d2fe;
-  border-radius: 10px;
-  padding: 6px 10px;
 }
 
 .scan-two-btns {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
+
+.scan-btn {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--border);
+}
+
+.scan-btn.active {
+  background: var(--err);
+  color: #fff;
+}
+
+.scan-btn-fast {
+  background: #047857;
+  color: #fff;
+}
+
+.scan-btn-fast.active {
+  background: #991b1b;
+}
+
+/* ——— Engine switcher ——— */
 .engine-switcher {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-bottom: 8px;
 }
+
 .engine-btn {
-  border-radius: 12px;
-  padding: 9px 8px;
-  font-size: 11px;
-  font-weight: 800;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  color: #334155;
-}
-.engine-btn.active {
-  background: linear-gradient(135deg, #0ea5e9, #2563eb);
-  border-color: transparent;
-  color: #fff;
-  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.22);
-}
-.engine-hint {
-  margin: 0 0 10px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #475569;
-}
-.scan-btn-fast {
-  background: linear-gradient(135deg, #059669, #0d9488);
-  box-shadow: 0 10px 18px rgba(5, 150, 105, 0.28);
-  border-color: transparent;
-  color: #fff;
-}
-.scan-btn-fast:active {
-  transform: scale(0.98);
-}
-.quick-actions-extra {
-  margin-top: 4px;
-  margin-bottom: 8px;
-}
-.quick-actions-extra .secondary-btn {
-  margin-top: 8px;
-}
-.quick-actions-extra .secondary-btn:first-of-type {
-  margin-top: 0;
+  padding: 10px 8px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1.25;
+  border-width: 2px;
 }
 
-/* Fast mode: Flutter scanner overlay */
+.engine-btn.active {
+  background: var(--lime);
+  box-shadow: var(--shadow-sm);
+}
+
+.engine-hint {
+  margin: 0 0 12px;
+  padding: 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--accent-soft);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+/* ——— Fullscreen scanner ——— */
 .scanner-shell {
-  position: relative;
-  margin-top: 10px;
-  border-radius: 18px;
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  background: var(--ink);
+  border: none;
+  border-radius: 0;
   overflow: hidden;
-  border: 1px solid #cbd5e1;
-  background: #0b1220;
-  min-height: 250px;
 }
-.scan-region {
-  width: 100%;
-  min-height: 250px;
-  height: 250px;
+
+.scanner-shell.hidden {
+  display: none;
+}
+
+.scanner-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px;
+  padding-top: max(12px, env(safe-area-inset-top));
+  background: var(--panel);
+  border-bottom: 3px solid var(--border);
+  box-shadow: 0 4px 0 rgba(10, 10, 10, 0.08);
+}
+
+.camera-select-label {
+  font-size: 0.75rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.camera-select {
+  flex: 1 1 140px;
+  min-width: 120px;
+  max-width: 100%;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--ink);
+  background: var(--paper);
+  border: 3px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.camera-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.toolbar-btn {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  font-size: 0.78rem;
+  border-width: 2px;
+}
+
+.toolbar-torch {
+  background: #fef3c7;
+}
+
+.toolbar-stop {
+  background: #fecaca;
+  font-weight: 950;
+}
+
+.scanner-viewport {
+  flex: 1;
+  min-height: 0;
   position: relative;
+  width: 100%;
 }
+
+.scan-region {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .scan-region video {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
-  border-radius: 0 !important;
   display: block;
 }
+
 .html5-region,
 .html5-region > div {
   width: 100% !important;
   height: 100% !important;
 }
+
 .html5-region video {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
 }
+
 .scan-overlay {
   pointer-events: none;
   position: absolute;
@@ -200,24 +342,57 @@ button.primary {
   align-items: center;
   justify-content: center;
 }
+
 .scan-frame {
   position: relative;
-  width: min(86%, var(--scan-box-w, 340px));
+  width: min(92vw, var(--scan-box-w, 340px));
   height: var(--scan-box-h, 170px);
-  border-radius: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.25);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  max-height: min(50vh, var(--scan-box-h, 400px));
+  border-radius: var(--radius);
+  border: 3px solid rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 2px var(--ink);
 }
+
 .corner {
   position: absolute;
-  width: 24px;
-  height: 24px;
-  border: 4px solid #22d3ee;
+  width: 22px;
+  height: 22px;
+  border: 4px solid var(--lime);
 }
-.corner.tl { top: -2px; right: -2px; border-left: none; border-bottom: none; border-radius: 0 10px 0 0; }
-.corner.tr { top: -2px; left: -2px; border-right: none; border-bottom: none; border-radius: 10px 0 0 0; }
-.corner.bl { bottom: -2px; right: -2px; border-left: none; border-top: none; border-radius: 0 0 10px 0; }
-.corner.br { bottom: -2px; left: -2px; border-right: none; border-top: none; border-radius: 0 0 0 10px; }
+
+.corner.tl {
+  top: -3px;
+  right: -3px;
+  border-left: none;
+  border-bottom: none;
+  border-radius: 0 8px 0 0;
+}
+
+.corner.tr {
+  top: -3px;
+  left: -3px;
+  border-right: none;
+  border-bottom: none;
+  border-radius: 8px 0 0 0;
+}
+
+.corner.bl {
+  bottom: -3px;
+  right: -3px;
+  border-left: none;
+  border-top: none;
+  border-radius: 0 0 8px 0;
+}
+
+.corner.br {
+  bottom: -3px;
+  left: -3px;
+  border-right: none;
+  border-top: none;
+  border-radius: 0 0 0 8px;
+}
+
 .scan-line {
   position: absolute;
   right: 8px;
@@ -225,81 +400,201 @@ button.primary {
   top: 10px;
   height: 4px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #06b6d4, #22d3ee, #38bdf8);
-  box-shadow: 0 0 16px rgba(34, 211, 238, 0.9);
+  background: var(--accent);
+  box-shadow: 0 0 14px var(--lime);
   animation: scanMove 2.2s linear infinite;
 }
+
 @keyframes scanMove {
-  0% { transform: translateY(0); opacity: 0.95; }
-  50% { transform: translateY(calc(var(--scan-box-h, 170px) - 24px)); opacity: 1; }
-  100% { transform: translateY(0); opacity: 0.95; }
+  0% {
+    transform: translateY(0);
+    opacity: 0.95;
+  }
+  50% {
+    transform: translateY(calc(var(--scan-box-h, 170px) - 22px));
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 0.95;
+  }
 }
+
 .scan-hint {
-  margin-top: 12px;
-  padding: 8px 12px;
+  margin-top: 16px;
+  padding: 10px 14px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  color: var(--ink);
+  background: var(--lime);
+  border: 3px solid var(--border);
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.74);
-  color: #f8fafc;
-  font-size: 12px;
-  font-weight: 800;
+  box-shadow: var(--shadow-sm);
 }
 
+/* ——— Status ——— */
 .status {
-  margin-top: 10px;
-  font-size: 13px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  font-size: 0.82rem;
   font-weight: 800;
-  color: #334155;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 9px 10px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
 }
-.status.ok { color: #166534; }
-.status.warn { color: #92400e; }
-.status.error { color: #be123c; }
 
-.hidden { display: none; }
-.recent-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+.status.ok {
+  background: #bbf7d0;
+  color: var(--ok);
+}
+
+.status.warn {
+  background: #fef08a;
+  color: var(--warn);
+}
+
+.status.error {
+  background: #fecaca;
+  color: var(--err);
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ——— Recent & product ——— */
+.recent-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .chip {
-  border-radius: 999px;
-  border: 1px solid #bfdbfe;
-  background: #eff6ff;
-  color: #1d4ed8;
   padding: 8px 12px;
-  font-size: 13px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--ink);
+  background: var(--accent-soft);
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  box-shadow: 2px 2px 0 var(--border);
+  cursor: pointer;
 }
 
-.product-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.product-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
 .price-badge {
   display: inline-block;
   width: fit-content;
-  background: #0ea5e9;
+  padding: 8px 14px;
+  font-weight: 950;
+  background: var(--accent);
   color: #fff;
+  border: 3px solid var(--border);
   border-radius: 999px;
-  padding: 6px 12px;
-  font-weight: 900;
+  box-shadow: var(--shadow-sm);
 }
+
 .source-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
   padding: 12px;
   margin-bottom: 10px;
-  background: #fff;
+  background: var(--paper);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 3px 3px 0 var(--border);
 }
+
 .source-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  font-weight: 800;
+  gap: 10px;
+  font-weight: 900;
 }
-.field-row { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+
+.field-row {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .field-pill {
-  border-radius: 999px;
-  background: #f1f5f9;
   padding: 5px 10px;
-  font-size: 12px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: var(--panel);
+  border: 2px solid var(--border);
+  border-radius: 999px;
+}
+
+.muted {
+  color: var(--muted);
   font-weight: 700;
 }
-.muted { color: #64748b; }
-.error { color: #be123c; font-weight: 800; }
+
+.error {
+  color: var(--err);
+  font-weight: 900;
+}
+
+.result-wrap {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* ——— Flutter overlay (اختياري) ——— */
+.flutter-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  background: var(--ink);
+}
+
+.flutter-overlay.hidden {
+  display: none;
+}
+
+.flutter-overlay-top {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  padding-top: max(12px, env(safe-area-inset-top));
+  background: var(--panel);
+  border-bottom: 3px solid var(--border);
+}
+
+.flutter-overlay-title {
+  font-weight: 950;
+  font-size: 0.9rem;
+}
+
+.flutter-overlay-close {
+  padding: 8px 12px;
+  font-family: inherit;
+  font-weight: 900;
+  background: #fecaca;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.flutter-iframe {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+  background: #000;
+}

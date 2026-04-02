@@ -32,143 +32,163 @@ document.querySelector('#app').innerHTML = `
   </div>
 
   <div class="app app-desktop">
-    <h1 class="hero-title">استيراد Excel ذكي</h1>
-    <div class="small-note">Backend: <span id="backendUrlText"></span></div>
-    <div class="stepper">
-      <div class="step active" data-step="1"><span>1</span> المصدر</div>
-      <div class="step" data-step="2"><span>2</span> المعاينة</div>
-      <div class="step" data-step="3"><span>3</span> Mapping</div>
-      <div class="step" data-step="4"><span>4</span> النتيجة</div>
-    </div>
+    <aside class="admin-sidebar">
+      <div class="admin-tabs admin-tabs-vertical">
+        <button type="button" class="tab-btn active" data-admin-tab="import">استيراد</button>
+        <button type="button" class="tab-btn" data-admin-tab="groups">المجاميع</button>
+        <button type="button" class="tab-btn" data-admin-tab="products">المنتجات</button>
+      </div>
+    </aside>
 
-    <div class="layout">
-      <div class="main">
-        <section class="card">
-          <h2>1) المصدر والملف</h2>
-          <div class="row">
-            <label>المصدر</label>
-            <div class="source-controls">
-              <select id="sourcePreset">
-                <option value="">قوالب جاهزة...</option>
-                <option value="company">الشركة</option>
-                <option value="dubai">دبي</option>
-                <option value="market">السوق</option>
-              </select>
-              <select id="templateSelect">
-                <option value="">قالب: (اختياري)</option>
-              </select>
-              <input id="sourceName" type="text" placeholder="مثال: dubai" />
+    <main class="admin-content">
+      <div id="panel-import" class="tab-panel">
+      <h1 class="hero-title">استيراد Excel ذكي</h1>
+      <div class="small-note">Backend: <span id="backendUrlText"></span></div>
+      <div class="stepper">
+        <div class="step active" data-step="1"><span>1</span> المصدر</div>
+        <div class="step" data-step="2"><span>2</span> المعاينة</div>
+        <div class="step" data-step="3"><span>3</span> Mapping</div>
+        <div class="step" data-step="4"><span>4</span> النتيجة</div>
+      </div>
+
+      <div class="layout">
+        <div class="main">
+          <section class="card">
+            <h2>1) المصدر والملف</h2>
+            <div class="row">
+              <label>المصدر</label>
+              <div class="source-controls">
+                <select id="sourcePreset">
+                  <option value="">قوالب جاهزة...</option>
+                  <option value="company">الشركة</option>
+                  <option value="dubai">دبي</option>
+                  <option value="market">السوق</option>
+                </select>
+                <select id="templateSelect">
+                  <option value="">قالب: (اختياري)</option>
+                </select>
+                <input id="sourceName" type="text" placeholder="مثال: dubai" />
+              </div>
             </div>
-          </div>
-          <div id="sourceTemplateInfo" class="source-template-info">المصدر الحالي: — | القالب: غير محدد</div>
+            <div id="sourceTemplateInfo" class="source-template-info">المصدر الحالي: — | القالب: غير محدد</div>
 
-          <div class="row">
-            <label>ملف Excel</label>
-            <input id="fileInput" type="file" accept=".xlsx,.xls" />
-          </div>
+            <div class="row">
+              <label>ملف Excel</label>
+              <input id="fileInput" type="file" accept=".xlsx,.xls" />
+            </div>
 
-          <div class="row">
-            <label>الورقة (Sheet)</label>
-            <select id="sheetSelect" disabled></select>
-          </div>
-        </section>
+            <div class="row">
+              <label>الورقة (Sheet)</label>
+              <select id="sheetSelect" disabled></select>
+            </div>
+          </section>
 
-        <section class="card">
-          <h2>2) المعاينة</h2>
-          <div id="previewWrap" class="preview-wrap">
-            <div id="previewMeta" class="preview-meta">قم برفع ملف Excel للمعاينة.</div>
-            <div id="previewTableWrap"></div>
-          </div>
-        </section>
+          <section class="card">
+            <h2>2) المعاينة</h2>
+            <div id="previewWrap" class="preview-wrap">
+              <div id="previewMeta" class="preview-meta">قم برفع ملف Excel للمعاينة.</div>
+              <div id="previewTableWrap"></div>
+            </div>
+          </section>
 
-        <section class="card">
-          <h2>3) ربط الأعمدة (Mapping)</h2>
+          <section class="card">
+            <h2>3) ربط الأعمدة (Mapping)</h2>
 
-          <div class="row">
-            <label>الباركود (مطلوب)</label>
-            <select id="mapBarcode"></select>
-          </div>
+            <div class="row">
+              <label>الباركود (مطلوب)</label>
+              <select id="mapBarcode"></select>
+            </div>
 
-          <div class="row">
-            <label>اسم المنتج (اختياري)</label>
-            <select id="mapName"></select>
-          </div>
+            <div class="row">
+              <label>اسم المنتج (اختياري)</label>
+              <select id="mapName"></select>
+            </div>
 
-          <div class="row">
-            <label>السعر (مطلوب)</label>
-            <select id="mapPrice"></select>
-          </div>
+            <div class="row">
+              <label>السعر (مطلوب)</label>
+              <select id="mapPrice"></select>
+            </div>
 
-          <div class="row">
-            <label>حقول إضافية (ديناميكية)</label>
-            <div class="extra-fields"><div id="extraFields"></div></div>
-          </div>
+            <div class="row">
+              <label>حقول إضافية (ديناميكية)</label>
+              <div class="extra-fields"><div id="extraFields"></div></div>
+            </div>
 
-          <div class="row extra-add">
-            <input id="customFieldKey" type="text" placeholder="أضف مفتاح حقل (مثال: brand_uam)" />
-            <button id="addCustomFieldBtn" type="button">إضافة حقل</button>
-          </div>
+            <div class="row extra-add">
+              <input id="customFieldKey" type="text" placeholder="أضف مفتاح حقل (مثال: brand_uam)" />
+              <button id="addCustomFieldBtn" type="button">إضافة حقل</button>
+            </div>
 
-          <div class="row actions">
-            <button id="loadTemplateBtn" type="button">تحميل القالب</button>
-            <button id="saveTemplateBtn" type="button">حفظ القالب</button>
-            <button id="importBtn" type="button" class="primary">استيراد</button>
-          </div>
-        </section>
-      </div>
-
-      <aside class="side">
-        <section class="card side-card">
-          <h2>حالة الاستيراد</h2>
-          <div class="side-status">
-            <div class="side-status-label">الجاهزية</div>
-            <div class="side-status-badge" id="mappingStatusBadgeMirror">—</div>
-          </div>
-          <div class="side-actions">
-            <button id="importBtnMirror" type="button" class="primary">استيراد الآن</button>
-            <button id="scrollToMappingBtn" type="button">الذهاب للـ Mapping</button>
-          </div>
-          <div class="side-hint">- اربط <b>Barcode</b> و <b>Price</b> أولاً<br />- استخدم قالب المصدر لتسريع العمل</div>
-        </section>
-
-        <section class="card" id="cardImportResult">
-          <h2>4) النتيجة</h2>
-          <div id="importSummary" class="import-summary hidden"></div>
-          <pre id="result" class="result">---</pre>
-        </section>
-      </aside>
-    </div>
-
-    <section class="card">
-      <h2>إدارة المجاميع والمنتجات</h2>
-      <div class="management-grid">
-        <div class="management-col">
-          <div class="row compact">
-            <label>بحث بالمجموعة</label>
-            <input id="groupSearchInput" type="text" placeholder="ابحث باسم المجموعة..." />
-          </div>
-          <div id="groupsWrap" class="list-wrap"></div>
+            <div class="row actions">
+              <button id="loadTemplateBtn" type="button">تحميل القالب</button>
+              <button id="saveTemplateBtn" type="button">حفظ القالب</button>
+              <button id="importBtn" type="button" class="primary">استيراد</button>
+            </div>
+          </section>
         </div>
 
-        <div class="management-col">
-          <div class="row compact">
-            <label>منتجات المجموعة</label>
-            <input id="groupProductsSearchInput" type="text" placeholder="بحث بالباركود أو الاسم..." />
-          </div>
-          <div id="groupProductsMeta" class="small-note">اختر مجموعة لعرض منتجاتها</div>
-          <div id="groupProductsWrap" class="list-wrap"></div>
-        </div>
-      </div>
-    </section>
+        <aside class="side">
+          <section class="card side-card">
+            <h2>حالة الاستيراد</h2>
+            <div class="side-status">
+              <div class="side-status-label">الجاهزية</div>
+              <div class="side-status-badge" id="mappingStatusBadgeMirror">—</div>
+            </div>
+            <div class="side-actions">
+              <button id="importBtnMirror" type="button" class="primary">استيراد الآن</button>
+              <button id="scrollToMappingBtn" type="button">الذهاب للـ Mapping</button>
+            </div>
+            <div class="side-hint">- اربط <b>Barcode</b> و <b>Price</b> أولاً<br />- استخدم قالب المصدر لتسريع العمل</div>
+          </section>
 
-    <section class="card">
-      <h2>كل المنتجات</h2>
-      <div class="row compact">
-        <label>بحث بالمنتج</label>
-        <input id="productsSearchInput" type="text" placeholder="ابحث بالباركود أو الاسم..." />
+          <section class="card" id="cardImportResult">
+            <h2>4) النتيجة</h2>
+            <div id="importSummary" class="import-summary hidden"></div>
+            <pre id="result" class="result">---</pre>
+            <div class="result-quick-actions">
+              <button id="gotoGroupsBtn" type="button" class="mini-btn">إدارة المجاميع</button>
+              <button id="gotoProductsBtn" type="button" class="mini-btn">إدارة المنتجات</button>
+            </div>
+          </section>
+        </aside>
       </div>
-      <div id="allProductsWrap" class="list-wrap"></div>
-    </section>
+      </div>
+
+      <div id="panel-groups" class="tab-panel hidden">
+      <section class="card">
+        <h2>إدارة المجاميع</h2>
+        <div class="management-grid">
+          <div class="management-col">
+            <div class="row compact">
+              <label>بحث بالمجموعة</label>
+              <input id="groupSearchInput" type="text" placeholder="ابحث باسم المجموعة..." />
+            </div>
+            <div id="groupsWrap" class="list-wrap"></div>
+          </div>
+
+          <div class="management-col">
+            <div class="row compact">
+              <label>منتجات المجموعة</label>
+              <input id="groupProductsSearchInput" type="text" placeholder="بحث بالباركود أو الاسم..." />
+            </div>
+            <div id="groupProductsMeta" class="small-note">اختر مجموعة لعرض منتجاتها</div>
+            <div id="groupProductsWrap" class="list-wrap"></div>
+          </div>
+        </div>
+      </section>
+      </div>
+
+      <div id="panel-products" class="tab-panel hidden">
+      <section class="card">
+        <h2>كل المنتجات</h2>
+        <div class="row compact">
+          <label>بحث بالمنتج</label>
+          <input id="productsSearchInput" type="text" placeholder="ابحث بالباركود أو الاسم..." />
+        </div>
+        <div id="allProductsWrap" class="list-wrap"></div>
+      </section>
+      </div>
+    </main>
   </div>
 `;
 
@@ -190,7 +210,20 @@ const state = {
   importTotals: null,
   loadedTemplateSource: '',
   loadedTemplateMapping: null,
+  uiTab: 'import',
 };
+
+function setTab(tabId) {
+  state.uiTab = tabId;
+  ['import', 'groups', 'products'].forEach((t) => {
+    const panel = document.getElementById(`panel-${t}`);
+    if (!panel) return;
+    panel.classList.toggle('hidden', t !== tabId);
+  });
+  document.querySelectorAll('.tab-btn[data-admin-tab]').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.adminTab === tabId);
+  });
+}
 
 const RESERVED = new Set(['barcode', 'name', 'price']);
 const defaultExtraKeys = ['brand', 'category', 'size', 'cost'];
@@ -896,6 +929,13 @@ $('addCustomFieldBtn').addEventListener('click', () => {
   });
 });
 
+document.querySelectorAll('.tab-btn[data-admin-tab]').forEach((btn) => {
+  btn.addEventListener('click', () => setTab(btn.dataset.adminTab));
+});
+
+$('gotoGroupsBtn')?.addEventListener('click', () => setTab('groups'));
+$('gotoProductsBtn')?.addEventListener('click', () => setTab('products'));
+
 $('groupSearchInput')?.addEventListener('input', debounce(async () => {
   try {
     await refreshGroups();
@@ -930,6 +970,7 @@ loadTemplateDropdownList();
 refreshGroups().catch(() => {});
 refreshAllProducts().catch(() => {});
 renderSourceTemplateInfo();
+setTab(state.uiTab);
 setStatus('جاهز.');
 setStep(1);
 updateMappingStatusBadge();

@@ -1,5 +1,5 @@
 import './style.css';
-import { BrowserCodeReader, BrowserMultiFormatReader, BarcodeFormat } from '@zxing/browser';
+import { BrowserMultiFormatReader, BarcodeFormat } from '@zxing/browser';
 import {
   DecodeHintType,
   MultiFormatReader,
@@ -25,8 +25,20 @@ const SCAN_REGION_ID = 'scanRegion';
 const SCAN_VIDEO_ID = 'scanVideo';
 const HTML5_REGION_ID = 'html5ScanRegion';
 
-const IOS_SCAN_BOX = { width: 300, height: 170 };
-const DEFAULT_SCAN_BOX = { width: 340, height: 180 };
+function scanBoxForViewport() {
+  const w = typeof window !== 'undefined' ? window.innerWidth : 400;
+  const h = typeof window !== 'undefined' ? window.innerHeight : 700;
+  if (isIOS) {
+    return {
+      width: Math.round(Math.min(w * 0.92, 720)),
+      height: Math.round(Math.min(h * 0.42, 420)),
+    };
+  }
+  return {
+    width: Math.round(Math.min(w * 0.9, 800)),
+    height: Math.round(Math.min(h * 0.4, 440)),
+  };
+}
 
 const isIOS =
   typeof navigator !== 'undefined' &&
@@ -86,27 +98,30 @@ app.innerHTML = `
       </div>
       <div id="engineHint" class="engine-hint">${ENGINE_OPTIONS[0].hint}</div>
 
-      <div class="quick-actions quick-actions-extra">
-        <button id="switchCameraBtn" class="secondary-btn hidden" type="button">تبديل الكاميرا</button>
-        <button id="toggleTorchBtn" class="secondary-btn hidden" type="button">تشغيل الإضاءة</button>
-        <div id="cameraLabel" class="camera-label hidden">—</div>
-      </div>
       <div class="row">
         <label for="barcodeInput">اكتب الباركود</label>
         <input id="barcodeInput" type="text" placeholder="مثال: 1234567890" />
         <button id="searchBtn" class="primary">عرض المنتج</button>
       </div>
       <div class="scanner-shell hidden" id="scannerShell">
-        <div id="${SCAN_REGION_ID}" class="scan-region"></div>
-        <div class="scan-overlay">
-          <div class="scan-frame">
-            <span class="corner tl"></span>
-            <span class="corner tr"></span>
-            <span class="corner bl"></span>
-            <span class="corner br"></span>
-            <span class="scan-line"></span>
+        <div class="scanner-toolbar">
+          <label class="camera-select-label" for="cameraSelect">الكاميرا</label>
+          <select id="cameraSelect" class="camera-select" aria-label="اختيار الكاميرا"></select>
+          <button id="toggleTorchBtn" class="toolbar-btn toolbar-torch hidden" type="button">إضاءة</button>
+          <button id="stopScannerOverlayBtn" class="toolbar-btn toolbar-stop" type="button">إيقاف الماسح</button>
+        </div>
+        <div class="scanner-viewport">
+          <div id="${SCAN_REGION_ID}" class="scan-region"></div>
+          <div class="scan-overlay">
+            <div class="scan-frame">
+              <span class="corner tl"></span>
+              <span class="corner tr"></span>
+              <span class="corner bl"></span>
+              <span class="corner br"></span>
+              <span class="scan-line"></span>
+            </div>
+            <div class="scan-hint">وجّه الكاميرا على الباركود داخل الإطار</div>
           </div>
-          <div class="scan-hint">وجّه الكاميرا على الباركود داخل الإطار</div>
         </div>
       </div>
       <div id="status" class="status">جاهز.</div>
@@ -130,7 +145,6 @@ const state = {
   codeReader: null,
   scannerRunning: false,
   scannerBusy: false,
-  switchingCamera: false,
   fastMode: false,
   selectedEngineId: 'zxingBrowser',
   activeEngineId: null,
@@ -209,13 +223,22 @@ function pickBestBackCamera(cameras) {
   return normalized[0]?.id || null;
 }
 
-function updateCameraLabel(cameraId) {
-  const labelEl = $('cameraLabel');
-  if (!labelEl) return;
-  const cam = state.cameras.find((c) => c.id === cameraId);
-  const label = cam?.label || 'الكاميرا الخلفية';
-  labelEl.textContent = `الكاميرا: ${label}`;
-  labelEl.classList.remove('hidden');
+function populateCameraSelect() {
+  const sel = $('cameraSelect');
+  if (!sel) return;
+  const current = state.selectedCameraId;
+  sel.innerHTML = '';
+  if (!state.cameras.length) {
+    sel.appendChild(new Option('شغّل الماسح لتحميل الكاميرات', '', true, true));
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
+  state.cameras.forEach((c, i) => {
+    const label = (c.label || '').trim() || `كاميرا ${i + 1}`;
+    const opt = new Option(label, c.id, false, c.id === current);
+    sel.appendChild(opt);
+  });
 }
 
 function setStatus(msg, type = '') {
@@ -444,7 +467,7 @@ function assertCameraAllowedContext() {
 async function refreshCameraList() {
   const devices = await BrowserMultiFormatReader.listVideoInputDevices();
   state.cameras = devices.map((d) => ({ id: d.deviceId, label: d.label || '' }));
-  $('switchCameraBtn').classList.toggle('hidden', state.cameras.length <= 1);
+  populateCameraSelect();
 }
 
 async function resolveSelectedDeviceId(cameraIdOverride = null) {
@@ -452,27 +475,21 @@ async function resolveSelectedDeviceId(cameraIdOverride = null) {
     await refreshCameraList();
   } catch (_) {
     state.cameras = [];
+    populateCameraSelect();
   }
 
+  let resolved = null;
   if (cameraIdOverride && state.cameras.some((c) => c.id === cameraIdOverride)) {
-    state.selectedCameraId = cameraIdOverride;
-    updateCameraLabel(cameraIdOverride);
-    return cameraIdOverride;
+    resolved = cameraIdOverride;
+  } else if (state.selectedCameraId && state.cameras.some((c) => c.id === state.selectedCameraId)) {
+    resolved = state.selectedCameraId;
+  } else {
+    resolved = pickBestBackCamera(state.cameras);
   }
 
-  if (state.selectedCameraId && state.cameras.some((c) => c.id === state.selectedCameraId)) {
-    updateCameraLabel(state.selectedCameraId);
-    return state.selectedCameraId;
-  }
-
-  const best = pickBestBackCamera(state.cameras);
-  if (best) {
-    state.selectedCameraId = best;
-    updateCameraLabel(best);
-    return best;
-  }
-
-  return null;
+  if (resolved) state.selectedCameraId = resolved;
+  populateCameraSelect();
+  return resolved;
 }
 
 function getEngineConstraints(deviceId, tier = 'primary') {
@@ -579,15 +596,18 @@ async function startWithHtml5Qrcode(deviceId) {
     verbose: false,
   });
 
-  const scanBox = isIOS ? IOS_SCAN_BOX : DEFAULT_SCAN_BOX;
+  const scanBox = scanBoxForViewport();
   $('scannerShell').style.setProperty('--scan-box-w', `${scanBox.width}px`);
   $('scannerShell').style.setProperty('--scan-box-h', `${scanBox.height}px`);
+
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 400;
+  const vh = typeof window !== 'undefined' ? Math.max(window.innerHeight, 320) : 700;
 
   const config = {
     fps: state.fastMode ? 20 : isIOS ? 12 : 16,
     qrbox: scanBox,
     disableFlip: true,
-    aspectRatio: isIOS ? 1.3333333 : 1.7777778,
+    aspectRatio: vw / vh,
     videoConstraints: getEngineConstraints(deviceId, 'primary').video,
     experimentalFeatures: { useBarCodeDetectorIfSupported: true },
   };
@@ -815,7 +835,6 @@ async function stopScanner() {
     $('scannerShell').classList.add('hidden');
     setScanButtonsState(false, false);
     $('toggleTorchBtn').classList.add('hidden');
-    $('switchCameraBtn').classList.toggle('hidden', state.cameras.length <= 1);
   } finally {
     state.scannerBusy = false;
   }
@@ -838,7 +857,7 @@ async function startScanner(mode = 'normal', cameraIdOverride = null) {
     assertCameraAllowedContext();
     const deviceId = await resolveSelectedDeviceId(cameraIdOverride);
 
-    const box = isIOS ? IOS_SCAN_BOX : DEFAULT_SCAN_BOX;
+    const box = scanBoxForViewport();
     $('scannerShell').style.setProperty('--scan-box-w', `${box.width}px`);
     $('scannerShell').style.setProperty('--scan-box-h', `${box.height}px`);
 
@@ -855,35 +874,6 @@ async function startScanner(mode = 'normal', cameraIdOverride = null) {
     setStatus(`تعذر تشغيل ${getEngineById(state.selectedEngineId).label}: ${e?.message || 'Unknown error'}`, 'error');
   } finally {
     state.scannerBusy = false;
-  }
-}
-
-async function switchCamera() {
-  if (state.switchingCamera || state.scannerBusy) return;
-  state.switchingCamera = true;
-
-  try {
-    if (!state.cameras.length) {
-      await refreshCameraList();
-    }
-    if (state.cameras.length <= 1) return;
-
-    const currentIndex = state.cameras.findIndex((c) => c.id === state.selectedCameraId);
-    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % state.cameras.length : 0;
-    const nextCameraId = state.cameras[nextIndex].id;
-    state.selectedCameraId = nextCameraId;
-    updateCameraLabel(nextCameraId);
-
-    if (state.scannerRunning) {
-      await startScanner(state.fastMode ? 'fast' : 'normal', nextCameraId);
-      setStatus('تم التبديل إلى الكاميرا التالية.', 'ok');
-    } else {
-      setStatus('تم اختيار كاميرا جديدة. شغّل الماسح للبدء.', 'ok');
-    }
-  } catch (e) {
-    setStatus(`تعذر التبديل: ${e?.message || 'Unknown error'}`, 'error');
-  } finally {
-    state.switchingCamera = false;
   }
 }
 
@@ -924,8 +914,18 @@ $('toggleTorchBtn').addEventListener('click', async () => {
   await setTorch(!state.torchOn);
 });
 
-$('switchCameraBtn').addEventListener('click', async () => {
-  await switchCamera();
+$('stopScannerOverlayBtn').addEventListener('click', async () => {
+  await stopScanner();
+});
+
+$('cameraSelect').addEventListener('change', async () => {
+  const id = $('cameraSelect').value;
+  if (!id || state.scannerBusy) return;
+  state.selectedCameraId = id;
+  if (state.scannerRunning) {
+    await startScanner(state.fastMode ? 'fast' : 'normal', id);
+    setStatus('تم تغيير الكاميرا.', 'ok');
+  }
 });
 
 document.querySelectorAll('.engine-btn').forEach((btn) => {
@@ -942,4 +942,5 @@ document.addEventListener('visibilitychange', async () => {
 
 updateEngineUi();
 resetScanRegionToVideo();
+populateCameraSelect();
 renderRecent();
