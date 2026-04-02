@@ -50,53 +50,26 @@ body {
   padding: 0 12px;
 }
 
-/* ——— Top bar (متوافق مع لوحة الإدارة) ——— */
-.topbar {
+/* ——— اسم الشركة ——— */
+.client-company-header {
   position: sticky;
   top: 0;
   z-index: 30;
-  margin: 12px 0 8px;
-  padding: 12px 14px;
+  margin: 14px 0 16px;
+  padding: 14px 16px;
+  text-align: center;
   background: var(--panel);
   border: 3px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
 }
 
-.topbar-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.brand-dot {
-  width: 14px;
-  height: 14px;
-  background: var(--accent);
-  border: 3px solid var(--border);
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-
-.brand-title {
-  font-weight: 900;
-  font-size: 1rem;
+.client-company-name {
+  margin: 0;
+  font-size: clamp(1.15rem, 4.5vw, 1.45rem);
+  font-weight: 950;
   letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-
-.brand-subtitle {
-  font-size: 0.72rem;
-  font-weight: 800;
-  color: var(--muted);
-  margin-top: 2px;
+  line-height: 1.25;
 }
 
 .container {
@@ -105,42 +78,6 @@ body {
   margin: 0 auto;
   padding: 8px 4px 36px;
   padding-bottom: max(36px, env(safe-area-inset-bottom));
-}
-
-/* ——— Header ——— */
-.header {
-  padding: 8px 4px 18px;
-}
-
-.app-chip {
-  display: inline-block;
-  padding: 6px 12px;
-  margin-bottom: 10px;
-  font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  background: var(--lime);
-  color: var(--ink);
-  border: 3px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
-}
-
-.header h1 {
-  margin: 0 0 6px;
-  font-size: clamp(2rem, 8vw, 2.75rem);
-  font-weight: 950;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-}
-
-.header p {
-  margin: 0;
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: var(--muted);
-  line-height: 1.45;
 }
 
 /* ——— Cards ——— */
@@ -252,21 +189,6 @@ button.primary {
   background: #991b1b;
 }
 
-.flutter-open-btn {
-  width: 100%;
-  margin-bottom: 12px;
-  padding: 11px 14px;
-  font-size: 0.85rem;
-  font-weight: 900;
-  background: var(--accent-soft);
-  border-width: 3px;
-  border-style: dashed;
-}
-
-.flutter-open-btn:hover:not(:disabled) {
-  background: #ffd4bc;
-}
-
 /* ——— Engine (library) select ——— */
 .engine-row {
   margin-bottom: 4px;
@@ -313,32 +235,6 @@ button.primary {
   background: var(--panel);
   border-bottom: 3px solid var(--border);
   box-shadow: 0 4px 0 rgba(10, 10, 10, 0.08);
-}
-
-.camera-select-label {
-  font-size: 0.75rem;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
-.camera-select {
-  flex: 1 1 140px;
-  min-width: 120px;
-  max-width: 100%;
-  padding: 10px 12px;
-  font-family: inherit;
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: var(--ink);
-  background: var(--paper);
-  border: 3px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
-}
-
-.camera-select:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
 }
 
 .toolbar-btn {
@@ -520,26 +416,7 @@ button.primary {
   display: none !important;
 }
 
-/* ——— Recent & product ——— */
-.recent-wrap {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.chip {
-  padding: 8px 12px;
-  font-family: inherit;
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: var(--ink);
-  background: var(--accent-soft);
-  border: 2px solid var(--border);
-  border-radius: 999px;
-  box-shadow: 2px 2px 0 var(--border);
-  cursor: pointer;
-}
-
+/* ——— Product result ——— */
 .product-head {
   display: flex;
   flex-direction: column;
@@ -653,53 +530,4 @@ button.primary {
 .result-wrap {
   font-size: 0.9rem;
   line-height: 1.5;
-}
-
-/* ——— Flutter overlay (اختياري) ——— */
-.flutter-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 400;
-  display: flex;
-  flex-direction: column;
-  background: var(--ink);
-}
-
-.flutter-overlay.hidden {
-  display: none;
-}
-
-.flutter-overlay-top {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px;
-  padding-top: max(12px, env(safe-area-inset-top));
-  background: var(--panel);
-  border-bottom: 3px solid var(--border);
-}
-
-.flutter-overlay-title {
-  font-weight: 950;
-  font-size: 0.9rem;
-}
-
-.flutter-overlay-close {
-  padding: 8px 12px;
-  font-family: inherit;
-  font-weight: 900;
-  background: #fecaca;
-  border: 2px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
-}
-
-.flutter-iframe {
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  border: 0;
-  background: #000;
 }

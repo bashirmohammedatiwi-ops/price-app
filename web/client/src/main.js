@@ -20,7 +20,6 @@ const DEFAULT_URL =
     ? `${window.location.origin}/price-api`
     : 'http://localhost:5000');
 
-const RECENT_KEY = 'price_client_recent_barcodes';
 const SCAN_REGION_ID = 'scanRegion';
 const SCAN_VIDEO_ID = 'scanVideo';
 const HTML5_REGION_ID = 'html5ScanRegion';
@@ -59,39 +58,18 @@ const engineSelectOptionsHtml = ENGINE_OPTIONS.map(
     `<option value="${engine.id}"${engine.id === 'zxingBrowser' ? ' selected' : ''}>${engine.label}</option>`,
 ).join('');
 
-function getFlutterWebUrl() {
-  const base = import.meta.env.BASE_URL || '/';
-  const normalized = base.endsWith('/') ? base : `${base}/`;
-  return `${normalized}flutter/index.html`;
-}
-
 app.innerHTML = `
   <div class="client-shell">
-    <div class="topbar client-topbar">
-      <div class="topbar-inner">
-        <div class="brand">
-          <div class="brand-dot"></div>
-          <div>
-            <div class="brand-title">سعر — واجهة الزبون</div>
-            <div class="brand-subtitle">بحث بالباركود وماسح متعدد المحركات</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <main class="container">
-    <header class="header">
-      <div class="app-chip">Price Web</div>
-      <h1>سعر</h1>
-      <p>اختبر 5 مكتبات مسح مختلفة واختر الأفضل خصوصًا للـ iPhone</p>
+    <header class="client-company-header">
+      <h1 class="client-company-name">شركه ديما الحياه</h1>
     </header>
 
+    <main class="container">
     <section class="card scanner-card">
       <div class="scan-two-btns">
         <button id="toggleScannerBtn" class="scan-btn scan-btn-normal" type="button">عادي</button>
         <button type="button" id="fastScannerBtn" class="scan-btn scan-btn-fast">سريع</button>
       </div>
-      <button type="button" id="openFlutterBtn" class="flutter-open-btn">فتح ماسح Flutter (ملء الشاشة)</button>
 
       <div class="row engine-row">
         <label for="engineSelect">مكتبة المسح</label>
@@ -107,8 +85,6 @@ app.innerHTML = `
       </div>
       <div class="scanner-shell hidden" id="scannerShell">
         <div class="scanner-toolbar">
-          <label class="camera-select-label" for="cameraSelect">الكاميرا</label>
-          <select id="cameraSelect" class="camera-select" aria-label="اختيار الكاميرا"></select>
           <button id="toggleTorchBtn" class="toolbar-btn toolbar-torch hidden" type="button">إضاءة</button>
           <button id="stopScannerOverlayBtn" class="toolbar-btn toolbar-stop" type="button">إيقاف الماسح</button>
         </div>
@@ -130,11 +106,6 @@ app.innerHTML = `
     </section>
 
     <section class="card">
-      <h2>آخر عمليات البحث</h2>
-      <div id="recentWrap" class="recent-wrap"></div>
-    </section>
-
-    <section class="card">
       <h2>تفاصيل المنتج</h2>
       <div id="resultWrap" class="result-wrap">لا توجد نتيجة بعد.</div>
     </section>
@@ -153,8 +124,6 @@ const state = {
   activeEngineId: null,
   lastScan: '',
   lastScanAt: 0,
-  selectedCameraId: null,
-  cameras: [],
   torchOn: false,
 
   // runtime engine handles
@@ -226,24 +195,6 @@ function pickBestBackCamera(cameras) {
   return normalized[0]?.id || null;
 }
 
-function populateCameraSelect() {
-  const sel = $('cameraSelect');
-  if (!sel) return;
-  const current = state.selectedCameraId;
-  sel.innerHTML = '';
-  if (!state.cameras.length) {
-    sel.appendChild(new Option('شغّل الماسح لتحميل الكاميرات', '', true, true));
-    sel.disabled = true;
-    return;
-  }
-  sel.disabled = false;
-  state.cameras.forEach((c, i) => {
-    const label = (c.label || '').trim() || `كاميرا ${i + 1}`;
-    const opt = new Option(label, c.id, false, c.id === current);
-    sel.appendChild(opt);
-  });
-}
-
 function setStatus(msg, type = '') {
   const el = $('status');
   el.textContent = msg;
@@ -300,37 +251,6 @@ async function setTorch(on) {
 
 function getBackendUrl() {
   return DEFAULT_URL.endsWith('/') ? DEFAULT_URL.slice(0, -1) : DEFAULT_URL;
-}
-
-function loadRecent() {
-  try {
-    return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
-  } catch {
-    return [];
-  }
-}
-
-function saveRecent(code) {
-  const current = loadRecent().filter((x) => x !== code);
-  current.unshift(code);
-  localStorage.setItem(RECENT_KEY, JSON.stringify(current.slice(0, 15)));
-}
-
-function renderRecent() {
-  const wrap = $('recentWrap');
-  const items = loadRecent();
-  if (!items.length) {
-    wrap.innerHTML = '<span class="muted">لا يوجد سجل بعد.</span>';
-    return;
-  }
-  wrap.innerHTML = '';
-  items.forEach((item) => {
-    const b = document.createElement('button');
-    b.className = 'chip';
-    b.textContent = item;
-    b.addEventListener('click', () => searchProduct(item));
-    wrap.appendChild(b);
-  });
 }
 
 function formatSourceDateClient(raw) {
@@ -425,8 +345,6 @@ async function searchProduct(barcodeRaw) {
     }
     if (!res.ok) throw new Error(`Request failed (${res.status})`);
     const body = await res.json();
-    saveRecent(barcode);
-    renderRecent();
     renderProduct(body);
     setStatus('تم تحميل المنتج بنجاح.', 'ok');
   } catch (e) {
@@ -509,32 +427,15 @@ function assertCameraAllowedContext() {
   throw new Error('افتح الصفحة عبر HTTPS (أو localhost) حتى تعمل الكاميرا على iPhone.');
 }
 
-async function refreshCameraList() {
-  const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-  state.cameras = devices.map((d) => ({ id: d.deviceId, label: d.label || '' }));
-  populateCameraSelect();
-}
-
-async function resolveSelectedDeviceId(cameraIdOverride = null) {
+/** كاميرا خلفية رئيسية واحدة (بدون اختيار من المستخدم). */
+async function resolvePrimaryBackDeviceId() {
   try {
-    await refreshCameraList();
+    const devices = await BrowserMultiFormatReader.listVideoInputDevices();
+    const cameras = devices.map((d) => ({ id: d.deviceId, label: d.label || '' }));
+    return pickBestBackCamera(cameras);
   } catch (_) {
-    state.cameras = [];
-    populateCameraSelect();
+    return null;
   }
-
-  let resolved = null;
-  if (cameraIdOverride && state.cameras.some((c) => c.id === cameraIdOverride)) {
-    resolved = cameraIdOverride;
-  } else if (state.selectedCameraId && state.cameras.some((c) => c.id === state.selectedCameraId)) {
-    resolved = state.selectedCameraId;
-  } else {
-    resolved = pickBestBackCamera(state.cameras);
-  }
-
-  if (resolved) state.selectedCameraId = resolved;
-  populateCameraSelect();
-  return resolved;
 }
 
 function getEngineConstraints(deviceId, tier = 'primary') {
@@ -885,26 +786,7 @@ async function stopScanner() {
   }
 }
 
-async function openFlutterOverlay() {
-  const overlay = document.getElementById('flutterOverlay');
-  const frame = document.getElementById('flutterFrame');
-  if (!overlay || !frame) return;
-  await stopScanner();
-  frame.src = getFlutterWebUrl();
-  overlay.classList.remove('hidden');
-  overlay.setAttribute('aria-hidden', 'false');
-}
-
-function closeFlutterOverlay() {
-  const overlay = document.getElementById('flutterOverlay');
-  const frame = document.getElementById('flutterFrame');
-  if (!overlay) return;
-  if (frame) frame.src = '';
-  overlay.classList.add('hidden');
-  overlay.setAttribute('aria-hidden', 'true');
-}
-
-async function startScanner(mode = 'normal', cameraIdOverride = null) {
+async function startScanner(mode = 'normal') {
   if (state.scannerBusy) return;
 
   // If scanner is already running, switch mode by restart.
@@ -919,7 +801,7 @@ async function startScanner(mode = 'normal', cameraIdOverride = null) {
 
   try {
     assertCameraAllowedContext();
-    const deviceId = await resolveSelectedDeviceId(cameraIdOverride);
+    const deviceId = await resolvePrimaryBackDeviceId();
 
     const box = scanBoxForViewport();
     $('scannerShell').style.setProperty('--scan-box-w', `${box.width}px`);
@@ -982,30 +864,8 @@ $('stopScannerOverlayBtn').addEventListener('click', async () => {
   await stopScanner();
 });
 
-$('cameraSelect').addEventListener('change', async () => {
-  const id = $('cameraSelect').value;
-  if (!id || state.scannerBusy) return;
-  state.selectedCameraId = id;
-  if (state.scannerRunning) {
-    await startScanner(state.fastMode ? 'fast' : 'normal', id);
-    setStatus('تم تغيير الكاميرا.', 'ok');
-  }
-});
-
 $('engineSelect').addEventListener('change', async () => {
   await setEngine($('engineSelect').value);
-});
-
-document.getElementById('openFlutterBtn')?.addEventListener('click', () => {
-  void openFlutterOverlay();
-});
-document.getElementById('closeFlutterOverlayBtn')?.addEventListener('click', () => closeFlutterOverlay());
-
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    const overlay = document.getElementById('flutterOverlay');
-    if (overlay && !overlay.classList.contains('hidden')) closeFlutterOverlay();
-  }
 });
 
 document.addEventListener('visibilitychange', async () => {
@@ -1016,5 +876,3 @@ document.addEventListener('visibilitychange', async () => {
 
 updateEngineUi();
 resetScanRegionToVideo();
-populateCameraSelect();
-renderRecent();
