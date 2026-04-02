@@ -125,6 +125,8 @@ const state = {
   lastScan: '',
   lastScanAt: 0,
   torchOn: false,
+  /** يثبّت الكاميرا الخلفية بين جلسات فتح/إغلاق الماسح (تجنّب التحويل للأمامية). */
+  cachedPrimaryBackDeviceId: null,
 
   // runtime engine handles
   scanControls: null,
@@ -171,28 +173,58 @@ if (typeof window !== 'undefined' && typeof window.BarcodeDetector === 'undefine
   window.BarcodeDetector = BarcodeDetectorPolyfill;
 }
 
+function isProbablyFrontCameraLabel(labelRaw) {
+  const l = String(labelRaw || '').toLowerCase();
+  if (!l.trim()) return false;
+  return (
+    /\bfront\b|facetime|selfie|user-facing|user facing|\buser\b.*camera|camera.*\buser\b|wide angle front|الأمامية|الامامية|كاميرا أمامية|كاميرا امامية/.test(
+      l,
+    ) || (l.includes('front') && !l.includes('back'))
+  );
+}
+
 function pickBestBackCamera(cameras) {
   if (!Array.isArray(cameras) || !cameras.length) return null;
   const normalized = cameras.map((c) => ({ ...c, l: String(c.label || '').toLowerCase() }));
 
+  const withLabel = normalized.filter((c) => c.l.trim());
+  const noFront = withLabel.length ? normalized.filter((c) => !isProbablyFrontCameraLabel(c.l)) : normalized;
+  const pool = noFront.length ? noFront : normalized;
+
   const score = (cam) => {
     let s = 0;
-    if (cam.l.includes('back') || cam.l.includes('rear') || cam.l.includes('environment')) s += 40;
+    const l = cam.l;
+    if (l.includes('back') || l.includes('rear') || l.includes('environment')) s += 40;
     if (isIOS) {
-      if (cam.l.includes('tele') || cam.l.includes('photo') || cam.l.includes('2x') || cam.l.includes('3x')) s -= 60;
-      if (cam.l.includes('ultra') || cam.l.includes('0.5') || cam.l.includes('macro')) s += 35;
-      if (cam.l.includes('wide') || cam.l.includes('1x') || cam.l.includes('back camera')) s += 20;
+      if (l.includes('tele') || l.includes('photo') || l.includes('2x') || l.includes('3x')) s -= 60;
+      if (l.includes('ultra') || l.includes('0.5') || l.includes('macro')) s += 35;
+      if (l.includes('wide') || l.includes('1x') || l.includes('back camera')) s += 20;
     } else {
-      if (cam.l.includes('tele') || cam.l.includes('photo')) s += 10;
-      if (cam.l.includes('wide') && !cam.l.includes('ultra')) s += 8;
-      if (cam.l.includes('ultra') || cam.l.includes('0.5')) s -= 20;
+      if (l.includes('tele') || l.includes('photo')) s += 10;
+      if (l.includes('wide') && !l.includes('ultra')) s += 8;
+      if (l.includes('ultra') || l.includes('0.5')) s -= 20;
     }
-    if (cam.l.includes('front') || cam.l.includes('user')) s -= 50;
+    if (l.includes('front') && !l.includes('back')) s -= 80;
+    if (l.includes('user') && (l.includes('camera') || l.includes('facing'))) s -= 80;
     return s;
   };
 
-  normalized.sort((a, b) => score(b) - score(a));
-  return normalized[0]?.id || null;
+  const sorted = [...pool].sort((a, b) => {
+    const d = score(b) - score(a);
+    if (d !== 0) return d;
+    return String(a.id).localeCompare(String(b.id));
+  });
+  return sorted[0]?.id || null;
+}
+
+function rememberPrimaryCameraFromScannerVideo() {
+  try {
+    const v = document.querySelector(`#${SCAN_REGION_ID} video`);
+    const stream = v?.srcObject;
+    const track = stream?.getVideoTracks?.()?.[0];
+    const id = track?.getSettings?.()?.deviceId;
+    if (id) state.cachedPrimaryBackDeviceId = id;
+  } catch (_) {}
 }
 
 function setStatus(msg, type = '') {
@@ -432,9 +464,15 @@ async function resolvePrimaryBackDeviceId() {
   try {
     const devices = await BrowserMultiFormatReader.listVideoInputDevices();
     const cameras = devices.map((d) => ({ id: d.deviceId, label: d.label || '' }));
-    return pickBestBackCamera(cameras);
+    const cached = state.cachedPrimaryBackDeviceId;
+    if (cached && cameras.some((c) => c.id === cached)) {
+      return cached;
+    }
+    const picked = pickBestBackCamera(cameras);
+    if (picked) state.cachedPrimaryBackDeviceId = picked;
+    return picked;
   } catch (_) {
-    return null;
+    return state.cachedPrimaryBackDeviceId;
   }
 }
 
@@ -477,7 +515,14 @@ function getEngineConstraints(deviceId, tier = 'primary') {
   if (deviceId) {
     return { video: { width: { ideal: selected.w }, height: { ideal: selected.h }, deviceId: { exact: deviceId } } };
   }
-  return { video: { width: { ideal: selected.w }, height: { ideal: selected.h }, facingMode: { ideal: 'environment' } } };
+  /* بدون deviceId: عيّن الخلفية بصرامة قدر الإمكان لتفادي اختيار الكاميرا الأمامية بعد إعادة الفتح على بعض المتصفحات */
+  return {
+    video: {
+      width: { ideal: selected.w },
+      height: { ideal: selected.h },
+      facingMode: { ideal: 'environment' },
+    },
+  };
 }
 
 function ensureReader() {
@@ -809,6 +854,9 @@ async function startScanner(mode = 'normal') {
 
     await startSelectedEngine(deviceId);
     state.scannerRunning = true;
+    rememberPrimaryCameraFromScannerVideo();
+    setTimeout(() => rememberPrimaryCameraFromScannerVideo(), 150);
+    setTimeout(() => rememberPrimaryCameraFromScannerVideo(), 450);
     setTorchUi();
     await applyIosFocusStabilityHints();
     setStatus('الماسح يعمل.', 'ok');
