@@ -59,10 +59,29 @@ const engineSelectOptionsHtml = ENGINE_OPTIONS.map(
     `<option value="${engine.id}"${engine.id === 'zxingBrowser' ? ' selected' : ''}>${engine.label}</option>`,
 ).join('');
 
+function getFlutterWebUrl() {
+  const base = import.meta.env.BASE_URL || '/';
+  const normalized = base.endsWith('/') ? base : `${base}/`;
+  return `${normalized}flutter/index.html`;
+}
+
 app.innerHTML = `
-  <main class="container">
+  <div class="client-shell">
+    <div class="topbar client-topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <div class="brand-dot"></div>
+          <div>
+            <div class="brand-title">سعر — واجهة الزبون</div>
+            <div class="brand-subtitle">بحث بالباركود وماسح متعدد المحركات</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <main class="container">
     <header class="header">
-      <div class="app-chip">Price Mobile</div>
+      <div class="app-chip">Price Web</div>
       <h1>سعر</h1>
       <p>اختبر 5 مكتبات مسح مختلفة واختر الأفضل خصوصًا للـ iPhone</p>
     </header>
@@ -72,6 +91,7 @@ app.innerHTML = `
         <button id="toggleScannerBtn" class="scan-btn scan-btn-normal" type="button">عادي</button>
         <button type="button" id="fastScannerBtn" class="scan-btn scan-btn-fast">سريع</button>
       </div>
+      <button type="button" id="openFlutterBtn" class="flutter-open-btn">فتح ماسح Flutter (ملء الشاشة)</button>
 
       <div class="row engine-row">
         <label for="engineSelect">مكتبة المسح</label>
@@ -118,7 +138,8 @@ app.innerHTML = `
       <h2>تفاصيل المنتج</h2>
       <div id="resultWrap" class="result-wrap">لا توجد نتيجة بعد.</div>
     </section>
-  </main>
+    </main>
+  </div>
 `;
 
 const $ = (id) => document.getElementById(id);
@@ -813,6 +834,25 @@ async function stopScanner() {
   }
 }
 
+async function openFlutterOverlay() {
+  const overlay = document.getElementById('flutterOverlay');
+  const frame = document.getElementById('flutterFrame');
+  if (!overlay || !frame) return;
+  await stopScanner();
+  frame.src = getFlutterWebUrl();
+  overlay.classList.remove('hidden');
+  overlay.setAttribute('aria-hidden', 'false');
+}
+
+function closeFlutterOverlay() {
+  const overlay = document.getElementById('flutterOverlay');
+  const frame = document.getElementById('flutterFrame');
+  if (!overlay) return;
+  if (frame) frame.src = '';
+  overlay.classList.add('hidden');
+  overlay.setAttribute('aria-hidden', 'true');
+}
+
 async function startScanner(mode = 'normal', cameraIdOverride = null) {
   if (state.scannerBusy) return;
 
@@ -903,6 +943,18 @@ $('cameraSelect').addEventListener('change', async () => {
 
 $('engineSelect').addEventListener('change', async () => {
   await setEngine($('engineSelect').value);
+});
+
+document.getElementById('openFlutterBtn')?.addEventListener('click', () => {
+  void openFlutterOverlay();
+});
+document.getElementById('closeFlutterOverlayBtn')?.addEventListener('click', () => closeFlutterOverlay());
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const overlay = document.getElementById('flutterOverlay');
+    if (overlay && !overlay.classList.contains('hidden')) closeFlutterOverlay();
+  }
 });
 
 document.addEventListener('visibilitychange', async () => {

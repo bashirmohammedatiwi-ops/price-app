@@ -44,10 +44,66 @@ body {
   background-size: 24px 24px;
 }
 
-.container {
-  width: min(520px, 100%);
+.client-shell {
+  max-width: 560px;
   margin: 0 auto;
-  padding: 16px 16px 36px;
+  padding: 0 12px;
+}
+
+/* ——— Top bar (متوافق مع لوحة الإدارة) ——— */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  margin: 12px 0 8px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 3px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-dot {
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border: 3px solid var(--border);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.brand-title {
+  font-weight: 900;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.brand-subtitle {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.container {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 8px 4px 36px;
   padding-bottom: max(36px, env(safe-area-inset-bottom));
 }
 
@@ -194,6 +250,21 @@ button.primary {
 
 .scan-btn-fast.active {
   background: #991b1b;
+}
+
+.flutter-open-btn {
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 11px 14px;
+  font-size: 0.85rem;
+  font-weight: 900;
+  background: var(--accent-soft);
+  border-width: 3px;
+  border-style: dashed;
+}
+
+.flutter-open-btn:hover:not(:disabled) {
+  background: #ffd4bc;
 }
 
 /* ——— Engine (library) select ——— */
