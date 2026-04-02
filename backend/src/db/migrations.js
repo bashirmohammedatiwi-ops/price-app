@@ -30,6 +30,12 @@ function migrate(db) {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  const psCols = db.prepare('PRAGMA table_info(product_sources)').all();
+  const psNames = new Set(psCols.map((c) => c.name));
+  if (!psNames.has('source_date')) {
+    db.exec('ALTER TABLE product_sources ADD COLUMN source_date TEXT');
+  }
 }
 
 module.exports = { migrate };

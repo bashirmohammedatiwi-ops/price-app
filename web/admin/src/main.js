@@ -110,6 +110,11 @@ document.querySelector('#app').innerHTML = `
             </div>
 
             <div class="row">
+              <label>التاريخ (اختياري)</label>
+              <select id="mapDate"></select>
+            </div>
+
+            <div class="row">
               <label>حقول إضافية (ديناميكية)</label>
               <div class="extra-fields"><div id="extraFields"></div></div>
             </div>
@@ -201,7 +206,7 @@ const state = {
   columns: [],
   rows: [],
   templates: [],
-  mapping: { barcode: '', name: '', price: '' },
+  mapping: { barcode: '', name: '', price: '', date: '' },
   extraKeys: [],
   groups: [],
   selectedGroupName: '',
@@ -225,7 +230,7 @@ function setTab(tabId) {
   });
 }
 
-const RESERVED = new Set(['barcode', 'name', 'price']);
+const RESERVED = new Set(['barcode', 'name', 'price', 'date']);
 const defaultExtraKeys = ['brand', 'category', 'size', 'cost'];
 const displayFieldName = { brand: 'العلامة التجارية', category: 'التصنيف', size: 'الحجم', cost: 'التكلفة' };
 
@@ -318,6 +323,7 @@ function renderPreview() {
       const td = document.createElement('td');
       if (c === state.mapping.barcode) td.className = 'cell-barcode';
       if (c === state.mapping.price) td.className = 'cell-price';
+      if (state.mapping.date && c === state.mapping.date) td.className = 'cell-date';
       td.textContent = r[c] == null ? '' : String(r[c]);
       tr.appendChild(td);
     }
@@ -401,6 +407,30 @@ function formatDateTime(value) {
   } catch {
     return s;
   }
+}
+
+function formatSourceDateLabel(raw) {
+  if (raw == null || String(raw).trim() === '') return '—';
+  const s = String(raw).trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) {
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    if (!Number.isNaN(d.getTime())) {
+      try {
+        return d.toLocaleDateString('ar', { dateStyle: 'medium' });
+      } catch {
+        return s.slice(0, 10);
+      }
+    }
+  }
+  return s.length > 28 ? `${s.slice(0, 28)}…` : s;
+}
+
+function toDateInputValue(raw) {
+  if (raw == null || String(raw).trim() === '') return '';
+  const s = String(raw).trim();
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : '';
 }
 
 function renderImportSummary() {
@@ -551,11 +581,15 @@ function renderGroupProducts() {
         <div class="list-item">
           <div class="list-item-main">
             <div class="list-item-title">${p.barcode} - ${p.name || 'بدون اسم'}</div>
-            <div class="list-item-meta">السعر: ${formatPrice(p.price)} | تاريخ السعر: ${formatDateTime(p.updated_at)}</div>
+            <div class="list-item-meta">السعر: ${formatPrice(p.price)} | التاريخ: ${formatSourceDateLabel(p.source_date)} | تحديث: ${formatDateTime(p.updated_at)}</div>
             <div class="edit-grid">
               <input class="gp-name" data-barcode="${p.barcode}" type="text" value="${p.name || ''}" placeholder="اسم المنتج" />
               <input class="gp-price" data-barcode="${p.barcode}" type="number" step="0.01" value="${formatPrice(p.price)}" />
               <input class="gp-fields" data-barcode="${p.barcode}" type="text" value='${fieldsText.replace(/'/g, '&#39;')}' placeholder='JSON fields' />
+            </div>
+            <div class="edit-row-date">
+              <label class="gp-date-label">تاريخ السعر (من الملف أو يدوي)</label>
+              <input class="gp-date" data-barcode="${p.barcode}" type="date" value="${toDateInputValue(p.source_date)}" />
             </div>
           </div>
           <div class="list-item-actions">
@@ -581,11 +615,13 @@ function renderGroupProducts() {
           return setStatus('صيغة fields يجب أن تكون JSON صحيح.');
         }
       }
+      const dateRaw = wrap.querySelector(`.gp-date[data-barcode="${barcode}"]`)?.value || '';
       try {
         await apiAdminUpdateGroupProduct(state.selectedGroupName, barcode, {
           name: name.trim() || null,
           price: Number(priceRaw),
           fields,
+          source_date: dateRaw.trim() || null,
         });
         await loadGroupProducts(state.selectedGroupName);
         await refreshAllProducts();
@@ -628,7 +664,7 @@ function renderAllProducts() {
       <div class="list-item">
         <div class="list-item-main">
           <div class="list-item-title">${p.barcode}</div>
-          <div class="list-item-meta">مجموعات: ${p.groups_count} | ${formatPrice(p.min_price)} - ${formatPrice(p.max_price)} | تاريخ المنتج: ${formatDateTime(p.updated_at)}</div>
+          <div class="list-item-meta">مجموعات: ${p.groups_count} | ${formatPrice(p.min_price)} - ${formatPrice(p.max_price)} | أحدث تاريخ سعر: ${formatSourceDateLabel(p.latest_source_date)} | تعديل الاسم: ${formatDateTime(p.updated_at)}</div>
           <input class="ap-name" data-barcode="${p.barcode}" type="text" value="${p.name || ''}" placeholder="اسم المنتج" />
         </div>
         <div class="list-item-actions">
@@ -702,15 +738,17 @@ function getCurrentMappingFromUI() {
   mapping.barcode = $('mapBarcode').value || state.mapping.barcode || '';
   mapping.name = $('mapName').value || state.mapping.name || '';
   mapping.price = $('mapPrice').value || state.mapping.price || '';
+  mapping.date = $('mapDate').value || state.mapping.date || '';
   for (const k of Object.keys(mapping)) if (!mapping[k]) delete mapping[k];
   return mapping;
 }
 function setMappingToUI(mapping) {
-  state.mapping = { barcode: '', name: '', price: '', ...mapping };
+  state.mapping = { barcode: '', name: '', price: '', date: '', ...mapping };
   state.extraKeys = getExtraKeysForMapping(mapping);
   renderSelectOptions($('mapBarcode'), getColumnOptions(), state.mapping.barcode);
   renderSelectOptions($('mapName'), getColumnOptions(), state.mapping.name);
   renderSelectOptions($('mapPrice'), getColumnOptions(), state.mapping.price);
+  renderSelectOptions($('mapDate'), getColumnOptions(), state.mapping.date);
   renderExtraFields();
   renderSourceTemplateInfo();
 }
@@ -860,6 +898,7 @@ async function handleFile(file) {
     renderSelectOptions($('mapBarcode'), columns, state.mapping.barcode);
     renderSelectOptions($('mapName'), columns, state.mapping.name);
     renderSelectOptions($('mapPrice'), columns, state.mapping.price);
+    renderSelectOptions($('mapDate'), columns, state.mapping.date);
     renderExtraFields();
     renderPreview();
     setStep(2);
@@ -899,6 +938,7 @@ $('sheetSelect').addEventListener('change', (e) => {
   renderSelectOptions($('mapBarcode'), columns, state.mapping.barcode);
   renderSelectOptions($('mapName'), columns, state.mapping.name);
   renderSelectOptions($('mapPrice'), columns, state.mapping.price);
+  renderSelectOptions($('mapDate'), columns, state.mapping.date);
   renderExtraFields();
   renderPreview();
   updateMappingStatusBadge();
@@ -932,7 +972,7 @@ $('addCustomFieldBtn').addEventListener('click', () => {
   renderExtraFields();
   renderSourceTemplateInfo();
 });
-['mapBarcode', 'mapName', 'mapPrice'].forEach((id) => {
+['mapBarcode', 'mapName', 'mapPrice', 'mapDate'].forEach((id) => {
   $(id).addEventListener('change', () => {
     setStep(3);
     updateMappingStatusBadge();
@@ -979,6 +1019,7 @@ renderExtraFields();
 renderSelectOptions($('mapBarcode'), [], '');
 renderSelectOptions($('mapName'), [], '');
 renderSelectOptions($('mapPrice'), [], '');
+renderSelectOptions($('mapDate'), [], '');
 loadTemplateDropdownList();
 refreshGroups().catch(() => {});
 refreshAllProducts().catch(() => {});

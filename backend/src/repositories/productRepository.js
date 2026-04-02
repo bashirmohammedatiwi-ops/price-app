@@ -29,6 +29,7 @@ function createProductRepository(db) {
         ps.source_name AS source_name,
         ps.price AS price,
         ps.extra_fields AS extra_fields,
+        ps.source_date AS source_date,
         ps.updated_at AS updated_at
       FROM products p
       LEFT JOIN product_sources ps
@@ -67,6 +68,7 @@ function createProductRepository(db) {
         source: r.source_name,
         price: r.price,
         fields,
+        source_date: r.source_date || null,
         updated_at: r.updated_at,
       });
     }

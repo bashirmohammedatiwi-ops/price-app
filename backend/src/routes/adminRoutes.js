@@ -15,6 +15,7 @@ function adminRoutes() {
     name: z.string().trim().optional().nullable(),
     price: z.coerce.number().finite().positive(),
     fields: z.record(z.string(), z.any()).optional().nullable(),
+    source_date: z.string().trim().max(64).optional().nullable(),
   });
 
   const updateProductSchema = z.object({
@@ -92,6 +93,7 @@ function adminRoutes() {
             p.name,
             ps.price,
             ps.extra_fields,
+            ps.source_date,
             ps.updated_at
           FROM product_sources ps
           INNER JOIN products p
@@ -123,6 +125,7 @@ function adminRoutes() {
           name: r.name,
           price: Number(r.price),
           fields,
+          source_date: r.source_date || null,
           updated_at: r.updated_at,
         };
       });
@@ -278,7 +281,8 @@ function adminRoutes() {
         throw err;
       }
 
-      const body = updateGroupProductSchema.parse(req.body || {});
+      const rawBody = req.body || {};
+      const body = updateGroupProductSchema.parse(rawBody);
       const fieldsJson = body.fields && Object.keys(body.fields).length ? JSON.stringify(body.fields) : null;
       const safeName = body.name && String(body.name).trim() ? String(body.name).trim() : null;
 
@@ -291,12 +295,20 @@ function adminRoutes() {
         }
 
         const sourceRow = db
-          .prepare('SELECT id FROM product_sources WHERE product_id = @product_id AND source_name = @source_name')
+          .prepare(
+            'SELECT id, source_date FROM product_sources WHERE product_id = @product_id AND source_name = @source_name',
+          )
           .get({ product_id: product.id, source_name: sourceName });
         if (!sourceRow) {
           const err = new Error('المنتج غير موجود داخل هذه المجموعة');
           err.statusCode = 404;
           throw err;
+        }
+
+        let sourceDateVal = sourceRow.source_date || null;
+        if (Object.prototype.hasOwnProperty.call(rawBody, 'source_date')) {
+          const v = rawBody.source_date;
+          sourceDateVal = v != null && String(v).trim() ? String(v).trim().slice(0, 64) : null;
         }
 
         if (safeName !== null) {
@@ -311,6 +323,7 @@ function adminRoutes() {
           UPDATE product_sources
           SET price = @price,
               extra_fields = @extra_fields,
+              source_date = @source_date,
               updated_at = strftime('%Y-%m-%d %H:%M:%f','now')
           WHERE id = @id
           `,
@@ -318,6 +331,7 @@ function adminRoutes() {
           id: sourceRow.id,
           price: body.price,
           extra_fields: fieldsJson,
+          source_date: sourceDateVal,
         });
       });
 
@@ -404,7 +418,8 @@ function adminRoutes() {
             p.updated_at,
             COUNT(ps.id) AS groups_count,
             MIN(ps.price) AS min_price,
-            MAX(ps.price) AS max_price
+            MAX(ps.price) AS max_price,
+            MAX(ps.source_date) AS latest_source_date
           FROM products p
           LEFT JOIN product_sources ps
             ON ps.product_id = p.id
@@ -425,6 +440,7 @@ function adminRoutes() {
           groups_count: Number(r.groups_count || 0),
           min_price: r.min_price === null ? null : Number(r.min_price),
           max_price: r.max_price === null ? null : Number(r.max_price),
+          latest_source_date: r.latest_source_date || null,
         })),
       });
     } catch (err) {

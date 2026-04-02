@@ -576,6 +576,13 @@ button.primary {
   font-weight: 900;
 }
 
+.source-date-line {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
 .field-row {
   margin-top: 10px;
   display: flex;

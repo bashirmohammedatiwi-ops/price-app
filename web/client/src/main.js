@@ -333,6 +333,13 @@ function renderRecent() {
   });
 }
 
+function formatSourceDateClient(raw) {
+  if (raw == null || String(raw).trim() === '') return '';
+  const s = String(raw).trim();
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : s.length > 20 ? s.slice(0, 20) : s;
+}
+
 function renderProduct(data) {
   const sources = Array.isArray(data.sources) ? [...data.sources].sort((a, b) => Number(a.price || 0) - Number(b.price || 0)) : [];
   if (!sources.length) {
@@ -351,8 +358,12 @@ function renderProduct(data) {
         const details = Object.keys(fields).length
           ? Object.entries(fields).map(([k, v]) => `<span class="field-pill">${k}: ${String(v)}</span>`).join('')
           : '<span class="muted">لا توجد تفاصيل إضافية</span>';
+        const dateLine = s.source_date
+          ? `<div class="source-date-line">التاريخ: ${formatSourceDateClient(s.source_date)}</div>`
+          : '';
         return `<div class="source-card">
           <div class="source-row"><b>${s.source || '-'}</b><span>${Number(s.price || 0).toFixed(2)}</span></div>
+          ${dateLine}
           <div class="field-row">${details}</div>
         </div>`;
       })
