@@ -340,31 +340,71 @@ function formatSourceDateClient(raw) {
   return m ? m[1] : s.length > 20 ? s.slice(0, 20) : s;
 }
 
+function sortKeyForSourceDate(raw) {
+  if (raw == null || String(raw).trim() === '') return '';
+  const s = String(raw).trim();
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : s;
+}
+
 function renderProduct(data) {
-  const sources = Array.isArray(data.sources) ? [...data.sources].sort((a, b) => Number(a.price || 0) - Number(b.price || 0)) : [];
+  const sources = Array.isArray(data.sources) ? data.sources.slice() : [];
   if (!sources.length) {
     $('resultWrap').innerHTML = `<div class="muted">لا توجد أسعار لهذا الباركود: ${data.barcode || '-'}</div>`;
     return;
   }
-  const cheapest = sources[0];
+
+  const cheapest = sources.reduce(
+    (best, s) => (!best || Number(s.price) < Number(best.price) ? s : best),
+    null,
+  );
+
+  const bySource = new Map();
+  for (const s of sources) {
+    const key = s.source || '-';
+    if (!bySource.has(key)) bySource.set(key, []);
+    bySource.get(key).push(s);
+  }
+
+  const blocks = [...bySource.entries()].map(([sourceName, rows]) => {
+    rows.sort((a, b) => {
+      const ka = sortKeyForSourceDate(a.source_date);
+      const kb = sortKeyForSourceDate(b.source_date);
+      if (ka !== kb) return kb.localeCompare(ka);
+      return Number(b.price || 0) - Number(a.price || 0);
+    });
+    return { sourceName, rows };
+  });
+
+  blocks.sort(
+    (a, b) => Math.min(...a.rows.map((r) => Number(r.price || 0))) - Math.min(...b.rows.map((r) => Number(r.price || 0))),
+  );
+
   const html = `
     <div class="product-head">
       <div><b>${data.name || 'بدون اسم'}</b><div class="muted">الباركود: ${data.barcode || '-'}</div></div>
       <div class="price-badge">الأرخص: ${Number(cheapest.price || 0).toFixed(2)}</div>
     </div>
-    ${sources
-      .map((s) => {
-        const fields = s.fields || {};
-        const details = Object.keys(fields).length
-          ? Object.entries(fields).map(([k, v]) => `<span class="field-pill">${k}: ${String(v)}</span>`).join('')
-          : '<span class="muted">لا توجد تفاصيل إضافية</span>';
-        const dateLine = s.source_date
-          ? `<div class="source-date-line">التاريخ: ${formatSourceDateClient(s.source_date)}</div>`
-          : '';
+    ${blocks
+      .map(({ sourceName, rows }) => {
+        const rowsHtml = rows
+          .map((s) => {
+            const fields = s.fields || {};
+            const details = Object.keys(fields).length
+              ? Object.entries(fields).map(([k, v]) => `<span class="field-pill">${k}: ${String(v)}</span>`).join('')
+              : '<span class="muted">لا توجد تفاصيل إضافية</span>';
+            const dateLabel = s.source_date
+              ? formatSourceDateClient(s.source_date)
+              : 'بدون تاريخ';
+            return `<div class="source-price-block">
+              <div class="source-price-line"><span class="source-date-tag">${dateLabel}</span><span class="source-price-val">${Number(s.price || 0).toFixed(2)}</span></div>
+              <div class="field-row">${details}</div>
+            </div>`;
+          })
+          .join('');
         return `<div class="source-card">
-          <div class="source-row"><b>${s.source || '-'}</b><span>${Number(s.price || 0).toFixed(2)}</span></div>
-          ${dateLine}
-          <div class="field-row">${details}</div>
+          <div class="source-group-title">${sourceName}</div>
+          ${rowsHtml}
         </div>`;
       })
       .join('')}

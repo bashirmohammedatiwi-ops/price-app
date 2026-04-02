@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { normalizeProductSourceDateKey } = require('../lib/productSourceDateKey');
 
 const reservedKeys = new Set(['barcode', 'name', 'price', 'date']);
 
@@ -122,7 +123,7 @@ function createImportService({ db, productRepository, productSourcesRepository }
 
     const productSourceExistsStmt = db.prepare(`
       SELECT id FROM product_sources
-      WHERE product_id = @product_id AND source_name = @source_name
+      WHERE product_id = @product_id AND source_name = @source_name AND date_key = @date_key
     `);
 
     const tx = db.transaction(() => {
@@ -187,8 +188,11 @@ function createImportService({ db, productRepository, productSourcesRepository }
           const col = normalizedMapping.date;
           sourceDate = normalizeSourceDate(rowParsed.data[col]);
         }
-        const pairKey = `${product_id}::${source}`;
-        const sourceExisted = seenProductSourcePairs.has(pairKey) ? null : productSourceExistsStmt.get({ product_id, source_name: source });
+        const dateKey = normalizeProductSourceDateKey(sourceDate);
+        const pairKey = `${product_id}::${source}::${dateKey}`;
+        const sourceExisted = seenProductSourcePairs.has(pairKey)
+          ? null
+          : productSourceExistsStmt.get({ product_id, source_name: source, date_key: dateKey });
         productSourcesRepository.upsertProductSource({
           product_id,
           source_name: source,

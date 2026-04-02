@@ -30,20 +30,15 @@ function createProductRepository(db) {
         ps.price AS price,
         ps.extra_fields AS extra_fields,
         ps.source_date AS source_date,
-        ps.updated_at AS updated_at
+        ps.updated_at AS updated_at,
+        ps.id AS source_row_id
       FROM products p
-      LEFT JOIN product_sources ps
-        ON ps.product_id = p.id
-       AND ps.id = (
-         SELECT ps3.id
-         FROM product_sources ps3
-         WHERE ps3.product_id = p.id
-           AND ps3.source_name = ps.source_name
-         ORDER BY ps3.updated_at DESC, ps3.id DESC
-         LIMIT 1
-       )
+      LEFT JOIN product_sources ps ON ps.product_id = p.id
       WHERE p.barcode = @barcode
-      ORDER BY ps.updated_at DESC
+      ORDER BY ps.source_name ASC,
+        CASE WHEN IFNULL(ps.date_key, '') = '' THEN 1 ELSE 0 END ASC,
+        ps.date_key DESC,
+        ps.updated_at DESC
     `);
 
     const rows = stmt.all({ barcode });
@@ -70,6 +65,7 @@ function createProductRepository(db) {
         fields,
         source_date: r.source_date || null,
         updated_at: r.updated_at,
+        source_row_id: r.source_row_id,
       });
     }
 

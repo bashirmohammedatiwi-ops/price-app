@@ -568,7 +568,7 @@ function renderGroupProducts() {
     return;
   }
 
-  meta.textContent = `المجموعة: ${state.selectedGroupName} | عدد المنتجات: ${state.groupProducts.length}`;
+  meta.textContent = `المجموعة: ${state.selectedGroupName} | عدد صفوف الأسعار (مع التواريخ): ${state.groupProducts.length}`;
   if (!state.groupProducts.length) {
     wrap.innerHTML = '<div class="muted">لا توجد منتجات في هذه المجموعة.</div>';
     return;
@@ -577,24 +577,28 @@ function renderGroupProducts() {
   wrap.innerHTML = state.groupProducts
     .map((p) => {
       const fieldsText = Object.keys(p.fields || {}).length ? JSON.stringify(p.fields) : '';
+      const rowId = Number(p.source_row_id);
+      const datePill = p.source_date
+        ? `<span class="template-pill ok">${formatSourceDateLabel(p.source_date)}</span>`
+        : `<span class="template-pill warn">بدون تاريخ</span>`;
       return `
-        <div class="list-item">
+        <div class="list-item" data-source-row-id="${rowId}">
           <div class="list-item-main">
-            <div class="list-item-title">${p.barcode} - ${p.name || 'بدون اسم'}</div>
-            <div class="list-item-meta">السعر: ${formatPrice(p.price)} | التاريخ: ${formatSourceDateLabel(p.source_date)} | تحديث: ${formatDateTime(p.updated_at)}</div>
+            <div class="list-item-title">${p.barcode} - ${p.name || 'بدون اسم'} ${datePill}</div>
+            <div class="list-item-meta">السعر: ${formatPrice(p.price)} | تحديث السجل: ${formatDateTime(p.updated_at)}</div>
             <div class="edit-grid">
-              <input class="gp-name" data-barcode="${p.barcode}" type="text" value="${p.name || ''}" placeholder="اسم المنتج" />
-              <input class="gp-price" data-barcode="${p.barcode}" type="number" step="0.01" value="${formatPrice(p.price)}" />
-              <input class="gp-fields" data-barcode="${p.barcode}" type="text" value='${fieldsText.replace(/'/g, '&#39;')}' placeholder='JSON fields' />
+              <input class="gp-name" data-source-row-id="${rowId}" type="text" value="${p.name || ''}" placeholder="اسم المنتج" />
+              <input class="gp-price" data-source-row-id="${rowId}" type="number" step="0.01" value="${formatPrice(p.price)}" />
+              <input class="gp-fields" data-source-row-id="${rowId}" type="text" value='${fieldsText.replace(/'/g, '&#39;')}' placeholder='JSON fields' />
             </div>
             <div class="edit-row-date">
               <label class="gp-date-label">تاريخ السعر (من الملف أو يدوي)</label>
-              <input class="gp-date" data-barcode="${p.barcode}" type="date" value="${toDateInputValue(p.source_date)}" />
+              <input class="gp-date" data-source-row-id="${rowId}" type="date" value="${toDateInputValue(p.source_date)}" />
             </div>
           </div>
           <div class="list-item-actions">
-            <button type="button" class="mini-btn gp-save-btn" data-barcode="${p.barcode}">حفظ</button>
-            <button type="button" class="mini-btn danger gp-delete-btn" data-barcode="${p.barcode}">حذف</button>
+            <button type="button" class="mini-btn gp-save-btn" data-barcode="${p.barcode}" data-source-row-id="${rowId}">حفظ</button>
+            <button type="button" class="mini-btn danger gp-delete-btn" data-barcode="${p.barcode}" data-source-row-id="${rowId}">حذف الصف</button>
           </div>
         </div>
       `;
@@ -604,9 +608,10 @@ function renderGroupProducts() {
   wrap.querySelectorAll('.gp-save-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const barcode = btn.dataset.barcode;
-      const name = wrap.querySelector(`.gp-name[data-barcode="${barcode}"]`)?.value || '';
-      const priceRaw = wrap.querySelector(`.gp-price[data-barcode="${barcode}"]`)?.value || '';
-      const fieldsRaw = wrap.querySelector(`.gp-fields[data-barcode="${barcode}"]`)?.value || '';
+      const rowId = Number(btn.dataset.sourceRowId);
+      const name = wrap.querySelector(`.gp-name[data-source-row-id="${rowId}"]`)?.value || '';
+      const priceRaw = wrap.querySelector(`.gp-price[data-source-row-id="${rowId}"]`)?.value || '';
+      const fieldsRaw = wrap.querySelector(`.gp-fields[data-source-row-id="${rowId}"]`)?.value || '';
       let fields = {};
       if (fieldsRaw.trim()) {
         try {
@@ -615,9 +620,10 @@ function renderGroupProducts() {
           return setStatus('صيغة fields يجب أن تكون JSON صحيح.');
         }
       }
-      const dateRaw = wrap.querySelector(`.gp-date[data-barcode="${barcode}"]`)?.value || '';
+      const dateRaw = wrap.querySelector(`.gp-date[data-source-row-id="${rowId}"]`)?.value || '';
       try {
         await apiAdminUpdateGroupProduct(state.selectedGroupName, barcode, {
+          source_row_id: rowId,
           name: name.trim() || null,
           price: Number(priceRaw),
           fields,
@@ -635,10 +641,16 @@ function renderGroupProducts() {
   wrap.querySelectorAll('.gp-delete-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const barcode = btn.dataset.barcode;
-      if (!barcode) return;
-      if (!window.confirm(`حذف المنتج ${barcode} من المجموعة ${state.selectedGroupName}؟`)) return;
+      const rowId = Number(btn.dataset.sourceRowId);
+      if (!barcode || !rowId) return;
+      if (
+        !window.confirm(
+          `حذف صف السعر هذا للمنتج ${barcode} من المجموعة ${state.selectedGroupName}؟ (صف واحد = تاريخ وسعر محددان)`,
+        )
+      )
+        return;
       try {
-        await apiAdminDeleteGroupProduct(state.selectedGroupName, barcode, true);
+        await apiAdminDeleteGroupProduct(state.selectedGroupName, barcode, true, rowId);
         await loadGroupProducts(state.selectedGroupName);
         await refreshGroups();
         await refreshAllProducts();

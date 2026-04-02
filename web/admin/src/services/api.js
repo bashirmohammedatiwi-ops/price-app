@@ -145,10 +145,11 @@ export async function apiAdminUpdateGroupProduct(sourceName, barcode, payload) {
   return body;
 }
 
-export async function apiAdminDeleteGroupProduct(sourceName, barcode, removeOrphan = true) {
-  const query = `?remove_orphan=${removeOrphan ? '1' : '0'}`;
+export async function apiAdminDeleteGroupProduct(sourceName, barcode, removeOrphan = true, sourceRowId) {
+  const q = new URLSearchParams({ remove_orphan: removeOrphan ? '1' : '0' });
+  if (sourceRowId != null) q.set('source_row_id', String(sourceRowId));
   const res = await fetchWithFallback(
-    `/admin/groups/${encodeURIComponent(sourceName)}/products/${encodeURIComponent(barcode)}${query}`,
+    `/admin/groups/${encodeURIComponent(sourceName)}/products/${encodeURIComponent(barcode)}?${q}`,
     {
       method: 'DELETE',
     },

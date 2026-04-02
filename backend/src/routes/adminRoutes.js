@@ -2,6 +2,7 @@ const express = require('express');
 const { z } = require('zod');
 
 const { getDb } = require('../db/sqlite');
+const { normalizeProductSourceDateKey } = require('../lib/productSourceDateKey');
 
 function adminRoutes() {
   const router = express.Router();
@@ -12,6 +13,7 @@ function adminRoutes() {
   });
 
   const updateGroupProductSchema = z.object({
+    source_row_id: z.coerce.number().int().positive(),
     name: z.string().trim().optional().nullable(),
     price: z.coerce.number().finite().positive(),
     fields: z.record(z.string(), z.any()).optional().nullable(),
@@ -91,6 +93,7 @@ function adminRoutes() {
           SELECT
             p.barcode,
             p.name,
+            ps.id AS source_row_id,
             ps.price,
             ps.extra_fields,
             ps.source_date,
@@ -99,16 +102,11 @@ function adminRoutes() {
           INNER JOIN products p
             ON p.id = ps.product_id
           WHERE ps.source_name = @source_name
-            AND ps.id = (
-              SELECT ps3.id
-              FROM product_sources ps3
-              WHERE ps3.product_id = ps.product_id
-                AND ps3.source_name = ps.source_name
-              ORDER BY ps3.updated_at DESC, ps3.id DESC
-              LIMIT 1
-            )
           ${searchSql}
-          ORDER BY ps.updated_at DESC, p.barcode ASC
+          ORDER BY p.barcode ASC,
+            CASE WHEN ps.source_date IS NULL OR TRIM(ps.source_date) = '' THEN 1 ELSE 0 END ASC,
+            ps.source_date DESC,
+            ps.updated_at DESC
           `,
         )
         .all(params);
@@ -123,6 +121,7 @@ function adminRoutes() {
         return {
           barcode: r.barcode,
           name: r.name,
+          source_row_id: Number(r.source_row_id),
           price: Number(r.price),
           fields,
           source_date: r.source_date || null,
@@ -296,9 +295,10 @@ function adminRoutes() {
 
         const sourceRow = db
           .prepare(
-            'SELECT id, source_date FROM product_sources WHERE product_id = @product_id AND source_name = @source_name',
+            `SELECT id, source_date FROM product_sources
+             WHERE id = @id AND product_id = @product_id AND source_name = @source_name`,
           )
-          .get({ product_id: product.id, source_name: sourceName });
+          .get({ id: body.source_row_id, product_id: product.id, source_name: sourceName });
         if (!sourceRow) {
           const err = new Error('المنتج غير موجود داخل هذه المجموعة');
           err.statusCode = 404;
@@ -309,6 +309,25 @@ function adminRoutes() {
         if (Object.prototype.hasOwnProperty.call(rawBody, 'source_date')) {
           const v = rawBody.source_date;
           sourceDateVal = v != null && String(v).trim() ? String(v).trim().slice(0, 64) : null;
+        }
+
+        const dateKeyNext = normalizeProductSourceDateKey(sourceDateVal);
+        const clash = db
+          .prepare(
+            `SELECT id FROM product_sources
+             WHERE product_id = @product_id AND source_name = @source_name AND date_key = @date_key AND id != @id
+             LIMIT 1`,
+          )
+          .get({
+            product_id: product.id,
+            source_name: sourceName,
+            date_key: dateKeyNext,
+            id: sourceRow.id,
+          });
+        if (clash) {
+          const err = new Error('يوجد بالفعل صف بنفس التاريخ لهذا المنتج في هذه المجموعة');
+          err.statusCode = 409;
+          throw err;
         }
 
         if (safeName !== null) {
@@ -324,6 +343,7 @@ function adminRoutes() {
           SET price = @price,
               extra_fields = @extra_fields,
               source_date = @source_date,
+              date_key = @date_key,
               updated_at = strftime('%Y-%m-%d %H:%M:%f','now')
           WHERE id = @id
           `,
@@ -332,6 +352,7 @@ function adminRoutes() {
           price: body.price,
           extra_fields: fieldsJson,
           source_date: sourceDateVal,
+          date_key: dateKeyNext,
         });
       });
 
@@ -352,6 +373,12 @@ function adminRoutes() {
         throw err;
       }
       const removeOrphan = String(req.query.remove_orphan || '1') !== '0';
+      const sourceRowId = Number.parseInt(String(req.query.source_row_id || ''), 10);
+      if (!Number.isFinite(sourceRowId) || sourceRowId <= 0) {
+        const err = new Error('source_row_id مطلوب');
+        err.statusCode = 400;
+        throw err;
+      }
 
       const tx = db.transaction(() => {
         const product = db.prepare('SELECT id FROM products WHERE barcode = @barcode').get({ barcode });
@@ -362,8 +389,11 @@ function adminRoutes() {
         }
 
         const deleted = db
-          .prepare('DELETE FROM product_sources WHERE product_id = @product_id AND source_name = @source_name')
-          .run({ product_id: product.id, source_name: sourceName }).changes;
+          .prepare(
+            `DELETE FROM product_sources
+             WHERE id = @id AND product_id = @product_id AND source_name = @source_name`,
+          )
+          .run({ id: sourceRowId, product_id: product.id, source_name: sourceName }).changes;
         if (!deleted) {
           const err = new Error('المنتج غير موجود داخل هذه المجموعة');
           err.statusCode = 404;
@@ -416,7 +446,7 @@ function adminRoutes() {
             p.barcode,
             p.name,
             p.updated_at,
-            COUNT(ps.id) AS groups_count,
+            COUNT(DISTINCT ps.source_name) AS groups_count,
             MIN(ps.price) AS min_price,
             MAX(ps.price) AS max_price,
             MAX(ps.source_date) AS latest_source_date

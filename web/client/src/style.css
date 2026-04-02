@@ -583,6 +583,47 @@ button.primary {
   color: var(--muted);
 }
 
+.source-group-title {
+  font-size: 0.95rem;
+  font-weight: 950;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--border);
+}
+
+.source-price-block {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(10, 10, 10, 0.2);
+}
+
+.source-price-block:first-of-type {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.source-price-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-weight: 900;
+}
+
+.source-date-tag {
+  font-size: 0.82rem;
+  padding: 4px 10px;
+  background: var(--accent-soft);
+  border: 2px solid var(--border);
+  border-radius: 999px;
+}
+
+.source-price-val {
+  font-size: 1rem;
+}
+
 .field-row {
   margin-top: 10px;
   display: flex;
