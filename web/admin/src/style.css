@@ -507,6 +507,69 @@ td.cell-price {
   font-weight: 900;
 }
 
+td.cell-date {
+  background: #fef9c3;
+  font-weight: 900;
+}
+
+/* ——— Purchase date column (مجموعات) ——— */
+.date-column-toggle-row {
+  margin-top: 6px;
+  margin-bottom: 4px;
+}
+
+.date-column-toggle-row .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 900;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+
+.date-column-toggle-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.purchase-date-block {
+  margin: 8px 0 10px;
+  padding: 10px 12px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+
+.purchase-date-latest {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
+.history-select-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.history-price-select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  cursor: pointer;
+}
+
 /* ——— Side panel ——— */
 .side-status {
   display: flex;

@@ -1,11 +1,26 @@
 const { z } = require('zod');
 
-const reservedKeys = new Set(['barcode', 'name', 'price']);
+const reservedKeys = new Set(['barcode', 'name', 'price', 'date']);
 
 function normalizeBarcode(value) {
   if (value === null || value === undefined) return '';
   const s = String(value).trim();
   return s;
+}
+
+function normalizePurchaseDate(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const utc = Math.round((value - 25569) * 86400 * 1000);
+    const d = new Date(utc);
+    if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+  const s = String(value).trim();
+  if (!s) return null;
+  return s.slice(0, 40);
 }
 
 function parsePrice(value) {
@@ -160,6 +175,11 @@ function createImportService({ db, productRepository, productSourcesRepository }
         const product_id = product.id;
 
         const extraFields = buildExtraFields({ mapping: normalizedMapping, row: rowParsed.data });
+        let purchaseDate = null;
+        if (normalizedMapping.date && typeof normalizedMapping.date === 'string') {
+          const colKey = normalizedMapping.date;
+          purchaseDate = normalizePurchaseDate(rowParsed.data[colKey]);
+        }
         const pairKey = `${product_id}::${source}`;
         const sourceExisted = seenProductSourcePairs.has(pairKey) ? null : productSourceExistsStmt.get({ product_id, source_name: source });
         productSourcesRepository.upsertProductSource({
@@ -167,6 +187,7 @@ function createImportService({ db, productRepository, productSourcesRepository }
           source_name: source,
           price,
           extraFields,
+          purchaseDate,
         });
 
         if (!seenProductSourcePairs.has(pairKey)) {

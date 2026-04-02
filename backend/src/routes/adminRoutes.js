@@ -2,6 +2,11 @@ const express = require('express');
 const { z } = require('zod');
 
 const { getDb } = require('../db/sqlite');
+const {
+  sortPriceHistoryDesc,
+  latestCalendarDateFromHistory,
+  parseHistoryJson,
+} = require('../utils/priceHistory');
 
 function adminRoutes() {
   const router = express.Router();
@@ -92,7 +97,9 @@ function adminRoutes() {
             p.name,
             ps.price,
             ps.extra_fields,
-            ps.updated_at
+            ps.updated_at,
+            ps.purchase_date,
+            ps.price_history
           FROM product_sources ps
           INNER JOIN products p
             ON p.id = ps.product_id
@@ -118,12 +125,15 @@ function adminRoutes() {
         } catch {
           fields = {};
         }
+        const priceHistory = parseHistoryJson(r.price_history);
         return {
           barcode: r.barcode,
           name: r.name,
           price: Number(r.price),
           fields,
           updated_at: r.updated_at,
+          purchase_date: r.purchase_date || null,
+          price_history: priceHistory,
         };
       });
 
@@ -291,7 +301,13 @@ function adminRoutes() {
         }
 
         const sourceRow = db
-          .prepare('SELECT id FROM product_sources WHERE product_id = @product_id AND source_name = @source_name')
+          .prepare(
+            `
+            SELECT id, price, purchase_date, price_history, updated_at
+            FROM product_sources
+            WHERE product_id = @product_id AND source_name = @source_name
+            `,
+          )
           .get({ product_id: product.id, source_name: sourceName });
         if (!sourceRow) {
           const err = new Error('المنتج غير موجود داخل هذه المجموعة');
@@ -306,11 +322,33 @@ function adminRoutes() {
           });
         }
 
+        let history = parseHistoryJson(sourceRow.price_history);
+        if (!history.length) {
+          history.push({
+            date: sourceRow.purchase_date || null,
+            price: Number(sourceRow.price),
+            recorded_at: sourceRow.updated_at || new Date().toISOString(),
+          });
+        }
+        const prevPrice = Number(sourceRow.price);
+        const newPrice = Number(body.price);
+        if (prevPrice !== newPrice) {
+          history.push({
+            date: null,
+            price: newPrice,
+            recorded_at: new Date().toISOString(),
+          });
+        }
+        history = sortPriceHistoryDesc(history);
+        const purchaseDateStored = latestCalendarDateFromHistory(history);
+
         db.prepare(
           `
           UPDATE product_sources
           SET price = @price,
               extra_fields = @extra_fields,
+              purchase_date = @purchase_date,
+              price_history = @price_history,
               updated_at = strftime('%Y-%m-%d %H:%M:%f','now')
           WHERE id = @id
           `,
@@ -318,6 +356,8 @@ function adminRoutes() {
           id: sourceRow.id,
           price: body.price,
           extra_fields: fieldsJson,
+          purchase_date: purchaseDateStored,
+          price_history: JSON.stringify(history),
         });
       });
 

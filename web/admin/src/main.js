@@ -110,6 +110,11 @@ document.querySelector('#app').innerHTML = `
             </div>
 
             <div class="row">
+              <label>تاريخ الشراء (اختياري)</label>
+              <select id="mapDate"></select>
+            </div>
+
+            <div class="row">
               <label>حقول إضافية (ديناميكية)</label>
               <div class="extra-fields"><div id="extraFields"></div></div>
             </div>
@@ -171,6 +176,9 @@ document.querySelector('#app').innerHTML = `
               <label>منتجات المجموعة</label>
               <input id="groupProductsSearchInput" type="text" placeholder="بحث بالباركود أو الاسم..." />
             </div>
+            <div class="row compact date-column-toggle-row">
+              <label class="checkbox-label"><input type="checkbox" id="showPurchaseDateColumn" /> إظهار عمود تاريخ الشراء</label>
+            </div>
             <div id="groupProductsMeta" class="small-note">اختر مجموعة لعرض منتجاتها</div>
             <div id="groupProductsWrap" class="list-wrap"></div>
           </div>
@@ -201,7 +209,7 @@ const state = {
   columns: [],
   rows: [],
   templates: [],
-  mapping: { barcode: '', name: '', price: '' },
+  mapping: { barcode: '', name: '', price: '', date: '' },
   extraKeys: [],
   groups: [],
   selectedGroupName: '',
@@ -225,7 +233,8 @@ function setTab(tabId) {
   });
 }
 
-const RESERVED = new Set(['barcode', 'name', 'price']);
+const RESERVED = new Set(['barcode', 'name', 'price', 'date']);
+const LS_SHOW_PURCHASE_DATE = 'price_admin_show_purchase_date';
 const defaultExtraKeys = ['brand', 'category', 'size', 'cost'];
 const displayFieldName = { brand: 'العلامة التجارية', category: 'التصنيف', size: 'الحجم', cost: 'التكلفة' };
 
@@ -318,6 +327,7 @@ function renderPreview() {
       const td = document.createElement('td');
       if (c === state.mapping.barcode) td.className = 'cell-barcode';
       if (c === state.mapping.price) td.className = 'cell-price';
+      if (c === state.mapping.date) td.className = 'cell-date';
       td.textContent = r[c] == null ? '' : String(r[c]);
       tr.appendChild(td);
     }
@@ -388,6 +398,51 @@ function formatPrice(price) {
   const n = Number(price);
   if (!Number.isFinite(n)) return '-';
   return n.toFixed(2);
+}
+
+function loadShowPurchaseDatePreference() {
+  try {
+    return localStorage.getItem(LS_SHOW_PURCHASE_DATE) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function saveShowPurchaseDatePreference(on) {
+  try {
+    localStorage.setItem(LS_SHOW_PURCHASE_DATE, on ? '1' : '0');
+  } catch {
+    /* ignore */
+  }
+}
+
+function latestPurchaseDateDisplay(p) {
+  const hist = Array.isArray(p.price_history) ? p.price_history : [];
+  const dated = hist.map((h) => (h?.date ? String(h.date).trim() : '')).filter(Boolean);
+  if (dated.length) {
+    return [...dated].sort((a, b) => b.localeCompare(a))[0];
+  }
+  return p.purchase_date && String(p.purchase_date).trim() ? String(p.purchase_date).trim() : null;
+}
+
+function renderPriceHistorySelect(p) {
+  const hist = Array.isArray(p.price_history) ? [...p.price_history] : [];
+  if (hist.length <= 1) return '';
+  const safeBc = String(p.barcode || '').replace(/"/g, '&quot;');
+  hist.sort((a, b) => {
+    const ad = a?.date ? String(a.date) : '';
+    const bd = b?.date ? String(b.date) : '';
+    if (ad && bd && ad !== bd) return bd.localeCompare(ad);
+    if (ad && !bd) return -1;
+    if (!ad && bd) return 1;
+    return String(b?.recorded_at || '').localeCompare(String(a?.recorded_at || ''));
+  });
+  const options = hist.map((h, idx) => {
+    const d = h?.date ? String(h.date) : '—';
+    const pr = formatPrice(h?.price);
+    return `<option value="${idx}">${d} — ${pr}</option>`;
+  });
+  return `<label class="history-select-label">سجل الأسعار حسب التاريخ</label><select class="history-price-select" data-barcode="${safeBc}" aria-label="سجل الأسعار">${options.join('')}</select>`;
 }
 
 function renderImportSummary() {
@@ -531,14 +586,29 @@ function renderGroupProducts() {
     return;
   }
 
+  const showDateCol = $('showPurchaseDateColumn')?.checked ?? loadShowPurchaseDatePreference();
+
   wrap.innerHTML = state.groupProducts
     .map((p) => {
       const fieldsText = Object.keys(p.fields || {}).length ? JSON.stringify(p.fields) : '';
+      const hist = Array.isArray(p.price_history) ? p.price_history : [];
+      const latestDt = latestPurchaseDateDisplay(p);
+      let dateBlock = '';
+      if (showDateCol) {
+        let topLine = '';
+        if (latestDt) topLine = `آخر تاريخ شراء: ${latestDt}`;
+        else if (hist.length > 1) topLine = 'آخر تاريخ شراء: —';
+        else if (hist.length === 1) topLine = `آخر تاريخ شراء: ${hist[0]?.date ? String(hist[0].date) : '—'}`;
+        else topLine = 'لا يوجد تاريخ مرتبط';
+        const dropdown = hist.length > 1 ? renderPriceHistorySelect(p) : '';
+        dateBlock = `<div class="purchase-date-block"><span class="purchase-date-latest">${topLine}</span>${dropdown}</div>`;
+      }
       return `
         <div class="list-item">
           <div class="list-item-main">
             <div class="list-item-title">${p.barcode} - ${p.name || 'بدون اسم'}</div>
-            <div class="list-item-meta">السعر: ${formatPrice(p.price)}</div>
+            <div class="list-item-meta">السعر الحالي: ${formatPrice(p.price)}</div>
+            ${dateBlock}
             <div class="edit-grid">
               <input class="gp-name" data-barcode="${p.barcode}" type="text" value="${p.name || ''}" placeholder="اسم المنتج" />
               <input class="gp-price" data-barcode="${p.barcode}" type="number" step="0.01" value="${formatPrice(p.price)}" />
@@ -553,6 +623,10 @@ function renderGroupProducts() {
       `;
     })
     .join('');
+
+  wrap.querySelectorAll('.history-price-select').forEach((sel) => {
+    sel.addEventListener('click', (e) => e.stopPropagation());
+  });
 
   wrap.querySelectorAll('.gp-save-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -689,15 +763,17 @@ function getCurrentMappingFromUI() {
   mapping.barcode = $('mapBarcode').value || state.mapping.barcode || '';
   mapping.name = $('mapName').value || state.mapping.name || '';
   mapping.price = $('mapPrice').value || state.mapping.price || '';
+  mapping.date = $('mapDate').value || state.mapping.date || '';
   for (const k of Object.keys(mapping)) if (!mapping[k]) delete mapping[k];
   return mapping;
 }
 function setMappingToUI(mapping) {
-  state.mapping = { barcode: '', name: '', price: '', ...mapping };
+  state.mapping = { barcode: '', name: '', price: '', date: '', ...mapping };
   state.extraKeys = getExtraKeysForMapping(mapping);
   renderSelectOptions($('mapBarcode'), getColumnOptions(), state.mapping.barcode);
   renderSelectOptions($('mapName'), getColumnOptions(), state.mapping.name);
   renderSelectOptions($('mapPrice'), getColumnOptions(), state.mapping.price);
+  renderSelectOptions($('mapDate'), getColumnOptions(), state.mapping.date);
   renderExtraFields();
   renderSourceTemplateInfo();
 }
@@ -847,6 +923,7 @@ async function handleFile(file) {
     renderSelectOptions($('mapBarcode'), columns, state.mapping.barcode);
     renderSelectOptions($('mapName'), columns, state.mapping.name);
     renderSelectOptions($('mapPrice'), columns, state.mapping.price);
+    renderSelectOptions($('mapDate'), columns, state.mapping.date);
     renderExtraFields();
     renderPreview();
     setStep(2);
@@ -886,6 +963,7 @@ $('sheetSelect').addEventListener('change', (e) => {
   renderSelectOptions($('mapBarcode'), columns, state.mapping.barcode);
   renderSelectOptions($('mapName'), columns, state.mapping.name);
   renderSelectOptions($('mapPrice'), columns, state.mapping.price);
+  renderSelectOptions($('mapDate'), columns, state.mapping.date);
   renderExtraFields();
   renderPreview();
   updateMappingStatusBadge();
@@ -919,7 +997,7 @@ $('addCustomFieldBtn').addEventListener('click', () => {
   renderExtraFields();
   renderSourceTemplateInfo();
 });
-['mapBarcode', 'mapName', 'mapPrice'].forEach((id) => {
+['mapBarcode', 'mapName', 'mapPrice', 'mapDate'].forEach((id) => {
   $(id).addEventListener('change', () => {
     setStep(3);
     updateMappingStatusBadge();
@@ -966,6 +1044,15 @@ renderExtraFields();
 renderSelectOptions($('mapBarcode'), [], '');
 renderSelectOptions($('mapName'), [], '');
 renderSelectOptions($('mapPrice'), [], '');
+renderSelectOptions($('mapDate'), [], '');
+const showPurchaseDateEl = $('showPurchaseDateColumn');
+if (showPurchaseDateEl) {
+  showPurchaseDateEl.checked = loadShowPurchaseDatePreference();
+  showPurchaseDateEl.addEventListener('change', () => {
+    saveShowPurchaseDatePreference(showPurchaseDateEl.checked);
+    renderGroupProducts();
+  });
+}
 loadTemplateDropdownList();
 refreshGroups().catch(() => {});
 refreshAllProducts().catch(() => {});

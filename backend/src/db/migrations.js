@@ -1,3 +1,8 @@
+function columnExists(db, table, name) {
+  const rows = db.prepare(`PRAGMA table_info(${table})`).all();
+  return rows.some((r) => r.name === name);
+}
+
 function migrate(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS products (
@@ -30,6 +35,13 @@ function migrate(db) {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  if (!columnExists(db, 'product_sources', 'purchase_date')) {
+    db.exec(`ALTER TABLE product_sources ADD COLUMN purchase_date TEXT`);
+  }
+  if (!columnExists(db, 'product_sources', 'price_history')) {
+    db.exec(`ALTER TABLE product_sources ADD COLUMN price_history TEXT`);
+  }
 }
 
 module.exports = { migrate };
