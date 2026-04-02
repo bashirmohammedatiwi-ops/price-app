@@ -48,7 +48,16 @@ function importRoutes() {
         ok: true,
         source: source_name,
         mapping_applied: mapping,
-        ...result,
+        imported_rows: result.imported_rows,
+        products: result.products,
+        product_sources: result.product_sources,
+        rows_received: body.data.length,
+        rows_imported: result.imported_rows,
+        products_created: result.products?.new || 0,
+        products_updated: result.products?.updated || 0,
+        source_rows_created: result.product_sources?.new || 0,
+        source_rows_updated: result.product_sources?.updated || 0,
+        ignored_rows: 0,
       });
     } catch (err) {
       next(err);

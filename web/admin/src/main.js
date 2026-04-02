@@ -5,6 +5,15 @@ import {
   apiSaveMappingTemplate,
   apiImport,
   apiListTemplates,
+  apiAdminListGroups,
+  apiAdminGetGroupProducts,
+  apiAdminRenameGroup,
+  apiAdminDeleteGroup,
+  apiAdminUpdateGroupProduct,
+  apiAdminDeleteGroupProduct,
+  apiAdminListProducts,
+  apiAdminUpdateProduct,
+  apiAdminDeleteProduct,
   getBackendUrl,
 } from './services/api.js';
 
@@ -51,6 +60,7 @@ document.querySelector('#app').innerHTML = `
               <input id="sourceName" type="text" placeholder="مثال: dubai" />
             </div>
           </div>
+          <div id="sourceTemplateInfo" class="source-template-info">المصدر الحالي: — | القالب: غير محدد</div>
 
           <div class="row">
             <label>ملف Excel</label>
@@ -123,10 +133,42 @@ document.querySelector('#app').innerHTML = `
 
         <section class="card" id="cardImportResult">
           <h2>4) النتيجة</h2>
+          <div id="importSummary" class="import-summary hidden"></div>
           <pre id="result" class="result">---</pre>
         </section>
       </aside>
     </div>
+
+    <section class="card">
+      <h2>إدارة المجاميع والمنتجات</h2>
+      <div class="management-grid">
+        <div class="management-col">
+          <div class="row compact">
+            <label>بحث بالمجموعة</label>
+            <input id="groupSearchInput" type="text" placeholder="ابحث باسم المجموعة..." />
+          </div>
+          <div id="groupsWrap" class="list-wrap"></div>
+        </div>
+
+        <div class="management-col">
+          <div class="row compact">
+            <label>منتجات المجموعة</label>
+            <input id="groupProductsSearchInput" type="text" placeholder="بحث بالباركود أو الاسم..." />
+          </div>
+          <div id="groupProductsMeta" class="small-note">اختر مجموعة لعرض منتجاتها</div>
+          <div id="groupProductsWrap" class="list-wrap"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>كل المنتجات</h2>
+      <div class="row compact">
+        <label>بحث بالمنتج</label>
+        <input id="productsSearchInput" type="text" placeholder="ابحث بالباركود أو الاسم..." />
+      </div>
+      <div id="allProductsWrap" class="list-wrap"></div>
+    </section>
   </div>
 `;
 
@@ -141,6 +183,13 @@ const state = {
   templates: [],
   mapping: { barcode: '', name: '', price: '' },
   extraKeys: [],
+  groups: [],
+  selectedGroupName: '',
+  groupProducts: [],
+  allProducts: [],
+  importTotals: null,
+  loadedTemplateSource: '',
+  loadedTemplateMapping: null,
 };
 
 const RESERVED = new Set(['barcode', 'name', 'price']);
@@ -275,6 +324,7 @@ function renderExtraFields() {
       state.mapping[key] = select.value || '';
       updateMappingStatusBadge();
       updateImportButtonState();
+      renderSourceTemplateInfo();
     });
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
@@ -286,10 +336,320 @@ function renderExtraFields() {
       renderExtraFields();
       updateMappingStatusBadge();
       updateImportButtonState();
+      renderSourceTemplateInfo();
     });
     row.append(keyLabel, select, delBtn);
     container.appendChild(row);
   }
+}
+
+function debounce(fn, wait = 300) {
+  let t = null;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), wait);
+  };
+}
+
+function formatPrice(price) {
+  const n = Number(price);
+  if (!Number.isFinite(n)) return '-';
+  return n.toFixed(2);
+}
+
+function renderImportSummary() {
+  const box = $('importSummary');
+  if (!box) return;
+  if (!state.importTotals) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+    return;
+  }
+
+  const t = state.importTotals;
+  box.classList.remove('hidden');
+  box.innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi"><div>المنتجات الجديدة</div><b>${t.products_created}</b></div>
+      <div class="kpi"><div>المنتجات المحدّثة</div><b>${t.products_updated}</b></div>
+      <div class="kpi"><div>صفوف المصدر الجديدة</div><b>${t.source_rows_created}</b></div>
+      <div class="kpi"><div>صفوف المصدر المحدّثة</div><b>${t.source_rows_updated}</b></div>
+      <div class="kpi"><div>إجمالي الصفوف</div><b>${t.rows_imported}</b></div>
+    </div>
+  `;
+}
+
+function renderSourceTemplateInfo() {
+  const box = $('sourceTemplateInfo');
+  if (!box) return;
+
+  const source = String($('sourceName')?.value || '').trim();
+  const selectedTemplate = String($('templateSelect')?.value || '').trim();
+  const loadedFrom = state.loadedTemplateSource || '';
+  const loadedMapping = state.loadedTemplateMapping || null;
+  const currentMapping = getCurrentMappingFromUI();
+
+  const mapPairs = Object.entries(currentMapping || {})
+    .filter(([, v]) => String(v || '').trim())
+    .map(([k, v]) => `${k}: ${v}`);
+
+  const mapText = mapPairs.length ? mapPairs.join(' | ') : 'لا يوجد ربط أعمدة بعد';
+  const templateLabel = loadedFrom
+    ? `محمل من "${loadedFrom}"`
+    : selectedTemplate
+      ? `محدد "${selectedTemplate}" (لم يتم تحميله بعد)`
+      : 'غير محدد';
+
+  const loadedText = loadedMapping ? 'قالب محمل' : 'قالب غير محمل';
+  box.textContent = `المصدر الحالي: ${source || '—'} | القالب: ${templateLabel} | الحالة: ${loadedText} | ${mapText}`;
+}
+
+function renderGroups() {
+  const wrap = $('groupsWrap');
+  if (!wrap) return;
+  if (!state.groups.length) {
+    wrap.innerHTML = '<div class="muted">لا توجد مجموعات بعد.</div>';
+    return;
+  }
+
+  const rows = state.groups
+    .map(
+      (g) => `
+      <div class="list-item ${state.selectedGroupName === g.source_name ? 'active' : ''}" data-group-name="${g.source_name}">
+        <div class="list-item-main">
+          <div class="list-item-title">${g.source_name} <span class="template-pill ${g.has_template ? 'ok' : 'warn'}">${g.has_template ? 'قالب محفوظ' : 'بدون قالب'}</span></div>
+          <div class="list-item-meta">منتجات: ${g.products_count} | صفوف: ${g.source_rows_count}</div>
+        </div>
+        <div class="list-item-actions">
+          <button type="button" class="mini-btn group-rename-btn" data-group-name="${g.source_name}">تعديل</button>
+          <button type="button" class="mini-btn danger group-delete-btn" data-group-name="${g.source_name}">حذف</button>
+        </div>
+      </div>
+    `,
+    )
+    .join('');
+
+  wrap.innerHTML = rows;
+
+  wrap.querySelectorAll('.list-item[data-group-name]').forEach((el) => {
+    el.addEventListener('click', async (e) => {
+      if (e.target.closest('.group-rename-btn') || e.target.closest('.group-delete-btn')) return;
+      const groupName = el.dataset.groupName;
+      if (groupName) await loadGroupProducts(groupName);
+    });
+  });
+
+  wrap.querySelectorAll('.group-rename-btn').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const current = btn.dataset.groupName;
+      if (!current) return;
+      const next = window.prompt('اسم المجموعة الجديد:', current);
+      if (!next || next.trim() === current) return;
+      try {
+        await apiAdminRenameGroup(current, next.trim());
+        if (state.selectedGroupName === current) state.selectedGroupName = next.trim();
+        await refreshGroups();
+        if (state.selectedGroupName) await loadGroupProducts(state.selectedGroupName);
+        setStatus(`تم تعديل اسم المجموعة من "${current}" إلى "${next.trim()}".`);
+      } catch (err) {
+        setStatus(`فشل تعديل المجموعة: ${err.message}`);
+      }
+    });
+  });
+
+  wrap.querySelectorAll('.group-delete-btn').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const groupName = btn.dataset.groupName;
+      if (!groupName) return;
+      if (!window.confirm(`حذف المجموعة "${groupName}"؟ سيتم حذف صفوف المصدر التابعة لها.`)) return;
+      try {
+        await apiAdminDeleteGroup(groupName, true);
+        if (state.selectedGroupName === groupName) {
+          state.selectedGroupName = '';
+          state.groupProducts = [];
+          renderGroupProducts();
+        }
+        await refreshGroups();
+        await refreshAllProducts();
+        setStatus(`تم حذف المجموعة "${groupName}".`);
+      } catch (err) {
+        setStatus(`فشل حذف المجموعة: ${err.message}`);
+      }
+    });
+  });
+}
+
+function renderGroupProducts() {
+  const meta = $('groupProductsMeta');
+  const wrap = $('groupProductsWrap');
+  if (!wrap || !meta) return;
+
+  if (!state.selectedGroupName) {
+    meta.textContent = 'اختر مجموعة لعرض منتجاتها';
+    wrap.innerHTML = '<div class="muted">لم يتم اختيار مجموعة.</div>';
+    return;
+  }
+
+  meta.textContent = `المجموعة: ${state.selectedGroupName} | عدد المنتجات: ${state.groupProducts.length}`;
+  if (!state.groupProducts.length) {
+    wrap.innerHTML = '<div class="muted">لا توجد منتجات في هذه المجموعة.</div>';
+    return;
+  }
+
+  wrap.innerHTML = state.groupProducts
+    .map((p) => {
+      const fieldsText = Object.keys(p.fields || {}).length ? JSON.stringify(p.fields) : '';
+      return `
+        <div class="list-item">
+          <div class="list-item-main">
+            <div class="list-item-title">${p.barcode} - ${p.name || 'بدون اسم'}</div>
+            <div class="list-item-meta">السعر: ${formatPrice(p.price)}</div>
+            <div class="edit-grid">
+              <input class="gp-name" data-barcode="${p.barcode}" type="text" value="${p.name || ''}" placeholder="اسم المنتج" />
+              <input class="gp-price" data-barcode="${p.barcode}" type="number" step="0.01" value="${formatPrice(p.price)}" />
+              <input class="gp-fields" data-barcode="${p.barcode}" type="text" value='${fieldsText.replace(/'/g, '&#39;')}' placeholder='JSON fields' />
+            </div>
+          </div>
+          <div class="list-item-actions">
+            <button type="button" class="mini-btn gp-save-btn" data-barcode="${p.barcode}">حفظ</button>
+            <button type="button" class="mini-btn danger gp-delete-btn" data-barcode="${p.barcode}">حذف</button>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+
+  wrap.querySelectorAll('.gp-save-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const barcode = btn.dataset.barcode;
+      const name = wrap.querySelector(`.gp-name[data-barcode="${barcode}"]`)?.value || '';
+      const priceRaw = wrap.querySelector(`.gp-price[data-barcode="${barcode}"]`)?.value || '';
+      const fieldsRaw = wrap.querySelector(`.gp-fields[data-barcode="${barcode}"]`)?.value || '';
+      let fields = {};
+      if (fieldsRaw.trim()) {
+        try {
+          fields = JSON.parse(fieldsRaw);
+        } catch {
+          return setStatus('صيغة fields يجب أن تكون JSON صحيح.');
+        }
+      }
+      try {
+        await apiAdminUpdateGroupProduct(state.selectedGroupName, barcode, {
+          name: name.trim() || null,
+          price: Number(priceRaw),
+          fields,
+        });
+        await loadGroupProducts(state.selectedGroupName);
+        await refreshAllProducts();
+        setStatus(`تم تحديث المنتج ${barcode} في المجموعة ${state.selectedGroupName}.`);
+      } catch (err) {
+        setStatus(`فشل تحديث المنتج: ${err.message}`);
+      }
+    });
+  });
+
+  wrap.querySelectorAll('.gp-delete-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const barcode = btn.dataset.barcode;
+      if (!barcode) return;
+      if (!window.confirm(`حذف المنتج ${barcode} من المجموعة ${state.selectedGroupName}؟`)) return;
+      try {
+        await apiAdminDeleteGroupProduct(state.selectedGroupName, barcode, true);
+        await loadGroupProducts(state.selectedGroupName);
+        await refreshGroups();
+        await refreshAllProducts();
+        setStatus(`تم حذف المنتج ${barcode} من المجموعة.`);
+      } catch (err) {
+        setStatus(`فشل حذف المنتج: ${err.message}`);
+      }
+    });
+  });
+}
+
+function renderAllProducts() {
+  const wrap = $('allProductsWrap');
+  if (!wrap) return;
+  if (!state.allProducts.length) {
+    wrap.innerHTML = '<div class="muted">لا توجد منتجات.</div>';
+    return;
+  }
+
+  wrap.innerHTML = state.allProducts
+    .map(
+      (p) => `
+      <div class="list-item">
+        <div class="list-item-main">
+          <div class="list-item-title">${p.barcode}</div>
+          <div class="list-item-meta">مجموعات: ${p.groups_count} | ${formatPrice(p.min_price)} - ${formatPrice(p.max_price)}</div>
+          <input class="ap-name" data-barcode="${p.barcode}" type="text" value="${p.name || ''}" placeholder="اسم المنتج" />
+        </div>
+        <div class="list-item-actions">
+          <button type="button" class="mini-btn ap-save-btn" data-barcode="${p.barcode}">حفظ</button>
+          <button type="button" class="mini-btn danger ap-delete-btn" data-barcode="${p.barcode}">حذف</button>
+        </div>
+      </div>
+    `,
+    )
+    .join('');
+
+  wrap.querySelectorAll('.ap-save-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const barcode = btn.dataset.barcode;
+      const name = wrap.querySelector(`.ap-name[data-barcode="${barcode}"]`)?.value || '';
+      try {
+        await apiAdminUpdateProduct(barcode, { name: name.trim() || null });
+        await refreshAllProducts();
+        if (state.selectedGroupName) await loadGroupProducts(state.selectedGroupName);
+        setStatus(`تم تحديث المنتج ${barcode}.`);
+      } catch (err) {
+        setStatus(`فشل تحديث المنتج: ${err.message}`);
+      }
+    });
+  });
+
+  wrap.querySelectorAll('.ap-delete-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const barcode = btn.dataset.barcode;
+      if (!barcode) return;
+      if (!window.confirm(`حذف المنتج ${barcode} بالكامل من كل المجموعات؟`)) return;
+      try {
+        await apiAdminDeleteProduct(barcode);
+        await refreshAllProducts();
+        await refreshGroups();
+        if (state.selectedGroupName) await loadGroupProducts(state.selectedGroupName);
+        setStatus(`تم حذف المنتج ${barcode}.`);
+      } catch (err) {
+        setStatus(`فشل حذف المنتج: ${err.message}`);
+      }
+    });
+  });
+}
+
+async function refreshGroups() {
+  const search = $('groupSearchInput')?.value?.trim() || '';
+  state.groups = await apiAdminListGroups(search);
+  if (state.selectedGroupName && !state.groups.some((g) => g.source_name === state.selectedGroupName)) {
+    state.selectedGroupName = '';
+    state.groupProducts = [];
+  }
+  renderGroups();
+}
+
+async function loadGroupProducts(groupName) {
+  const search = $('groupProductsSearchInput')?.value?.trim() || '';
+  const body = await apiAdminGetGroupProducts(groupName, search);
+  state.selectedGroupName = groupName;
+  state.groupProducts = body.products || [];
+  renderGroups();
+  renderGroupProducts();
+}
+
+async function refreshAllProducts() {
+  const search = $('productsSearchInput')?.value?.trim() || '';
+  state.allProducts = await apiAdminListProducts(search);
+  renderAllProducts();
 }
 function getCurrentMappingFromUI() {
   const mapping = { ...state.mapping };
@@ -306,6 +666,7 @@ function setMappingToUI(mapping) {
   renderSelectOptions($('mapName'), getColumnOptions(), state.mapping.name);
   renderSelectOptions($('mapPrice'), getColumnOptions(), state.mapping.price);
   renderExtraFields();
+  renderSourceTemplateInfo();
 }
 function computeImportReadiness() {
   if (!state.rows.length || !state.columns.length) return { canImport: false, status: 'warn', message: 'قم برفع ملف Excel ثم اختر ورقة للمعاينة.' };
@@ -336,9 +697,17 @@ async function loadTemplateForCurrentSource() {
   setStatus(`جارٍ تحميل القالب للمصدر "${sourceName}"...`);
   try {
     const tpl = await apiGetMappingTemplate(sourceName);
-    if (!tpl) return setStatus(`لم يتم العثور على قالب للمصدر "${sourceName}".`);
+    if (!tpl) {
+      state.loadedTemplateSource = '';
+      state.loadedTemplateMapping = null;
+      renderSourceTemplateInfo();
+      return setStatus(`لم يتم العثور على قالب للمصدر "${sourceName}".`);
+    }
     setMappingToUI(tpl.mapping || {});
+    state.loadedTemplateSource = sourceName;
+    state.loadedTemplateMapping = tpl.mapping || {};
     $('templateSelect').value = sourceName;
+    renderSourceTemplateInfo();
     setStatus(`تم تحميل القالب للمصدر "${sourceName}".`);
   } catch (e) {
     setStatus(`خطأ تحميل القالب: ${e.message}`);
@@ -368,6 +737,8 @@ async function onImport() {
     source_rows_updated: 0,
     ignored_rows: 0,
   };
+  state.importTotals = null;
+  renderImportSummary();
 
   try {
     for (let i = 0; i < chunks.length; i++) {
@@ -395,6 +766,10 @@ async function onImport() {
         2
       )
     );
+    state.importTotals = totals;
+    renderImportSummary();
+    await refreshGroups();
+    await refreshAllProducts();
     setStep(4);
   } catch (e) {
     setStatus(`خطأ الاستيراد: ${e.message}`);
@@ -407,6 +782,9 @@ async function onSaveTemplate() {
   if (!mapping.barcode || !mapping.price) return setStatus('الباركود والسعر مطلوبان لحفظ القالب.');
   try {
     await apiSaveMappingTemplate(source, mapping);
+    state.loadedTemplateSource = source;
+    state.loadedTemplateMapping = { ...mapping };
+    renderSourceTemplateInfo();
     setStatus(`تم حفظ القالب للمصدر "${source}".`);
     await loadTemplateDropdownList();
   } catch (e) {
@@ -483,7 +861,9 @@ $('sheetSelect').addEventListener('change', (e) => {
 $('sourcePreset').addEventListener('change', () => {
   const v = $('sourcePreset').value;
   if (v) $('sourceName').value = v;
+  renderSourceTemplateInfo();
 });
+$('sourceName').addEventListener('input', () => renderSourceTemplateInfo());
 $('sourceName').addEventListener('change', () => loadTemplateForCurrentSource());
 $('loadTemplateBtn').addEventListener('click', () => loadTemplateForCurrentSource());
 $('saveTemplateBtn').addEventListener('click', () => onSaveTemplate());
@@ -494,6 +874,7 @@ $('templateSelect').addEventListener('change', async () => {
   const v = $('templateSelect').value;
   if (!v) return;
   $('sourceName').value = v;
+  renderSourceTemplateInfo();
   await loadTemplateForCurrentSource();
 });
 $('addCustomFieldBtn').addEventListener('click', () => {
@@ -503,6 +884,7 @@ $('addCustomFieldBtn').addEventListener('click', () => {
   state.mapping[key] = '';
   $('customFieldKey').value = '';
   renderExtraFields();
+  renderSourceTemplateInfo();
 });
 ['mapBarcode', 'mapName', 'mapPrice'].forEach((id) => {
   $(id).addEventListener('change', () => {
@@ -510,8 +892,34 @@ $('addCustomFieldBtn').addEventListener('click', () => {
     updateMappingStatusBadge();
     updateImportButtonState();
     renderPreview();
+    renderSourceTemplateInfo();
   });
 });
+
+$('groupSearchInput')?.addEventListener('input', debounce(async () => {
+  try {
+    await refreshGroups();
+  } catch (e) {
+    setStatus(`فشل تحميل المجاميع: ${e.message}`);
+  }
+}, 260));
+
+$('groupProductsSearchInput')?.addEventListener('input', debounce(async () => {
+  if (!state.selectedGroupName) return;
+  try {
+    await loadGroupProducts(state.selectedGroupName);
+  } catch (e) {
+    setStatus(`فشل تحميل منتجات المجموعة: ${e.message}`);
+  }
+}, 260));
+
+$('productsSearchInput')?.addEventListener('input', debounce(async () => {
+  try {
+    await refreshAllProducts();
+  } catch (e) {
+    setStatus(`فشل تحميل المنتجات: ${e.message}`);
+  }
+}, 260));
 
 state.extraKeys = defaultExtraKeys.slice();
 renderExtraFields();
@@ -519,6 +927,9 @@ renderSelectOptions($('mapBarcode'), [], '');
 renderSelectOptions($('mapName'), [], '');
 renderSelectOptions($('mapPrice'), [], '');
 loadTemplateDropdownList();
+refreshGroups().catch(() => {});
+refreshAllProducts().catch(() => {});
+renderSourceTemplateInfo();
 setStatus('جاهز.');
 setStep(1);
 updateMappingStatusBadge();

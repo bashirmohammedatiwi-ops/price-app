@@ -109,6 +109,10 @@ function createImportService({ db, productRepository, productSourcesRepository }
       let existingProducts = 0;
       let newSources = 0;
       let updatedSources = 0;
+      // Avoid counting duplicates multiple times for the same barcode/source pair.
+      // We still upsert every row so the last row wins for the final stored price/fields.
+      const seenProductBarcodes = new Set();
+      const seenProductSourcePairs = new Set();
 
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
@@ -145,15 +149,19 @@ function createImportService({ db, productRepository, productSourcesRepository }
               })()
             : null;
 
-        const existed = productIdExistsStmt.get({ barcode });
+        const existed = seenProductBarcodes.has(barcode) ? null : productIdExistsStmt.get({ barcode });
         const product = productRepository.upsertProduct({ barcode, name });
-        if (existed?.id) existingProducts += 1;
-        else newProducts += 1;
+        if (!seenProductBarcodes.has(barcode)) {
+          if (existed?.id) existingProducts += 1;
+          else newProducts += 1;
+          seenProductBarcodes.add(barcode);
+        }
 
         const product_id = product.id;
 
         const extraFields = buildExtraFields({ mapping: normalizedMapping, row: rowParsed.data });
-        const sourceExisted = productSourceExistsStmt.get({ product_id, source_name: source });
+        const pairKey = `${product_id}::${source}`;
+        const sourceExisted = seenProductSourcePairs.has(pairKey) ? null : productSourceExistsStmt.get({ product_id, source_name: source });
         productSourcesRepository.upsertProductSource({
           product_id,
           source_name: source,
@@ -161,8 +169,11 @@ function createImportService({ db, productRepository, productSourcesRepository }
           extraFields,
         });
 
-        if (sourceExisted?.id) updatedSources += 1;
-        else newSources += 1;
+        if (!seenProductSourcePairs.has(pairKey)) {
+          if (sourceExisted?.id) updatedSources += 1;
+          else newSources += 1;
+          seenProductSourcePairs.add(pairKey);
+        }
 
         importedRows += 1;
       }

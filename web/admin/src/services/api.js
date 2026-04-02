@@ -93,3 +93,95 @@ export async function apiImport({ source, mapping, data }) {
   if (!res.ok) throw new Error(body?.error || `Import failed (${res.status})`);
   return body;
 }
+
+export async function apiAdminListGroups(search = '') {
+  const query = search ? `?search=${encodeURIComponent(search)}` : '';
+  const res = await fetchWithFallback(`/admin/groups${query}`);
+  const body = await parseBody(res);
+  if (!res.ok) throw new Error(body?.error || `Failed to list groups (${res.status})`);
+  return body?.groups || [];
+}
+
+export async function apiAdminGetGroupProducts(sourceName, search = '') {
+  const query = search ? `?search=${encodeURIComponent(search)}` : '';
+  const res = await fetchWithFallback(`/admin/groups/${encodeURIComponent(sourceName)}/products${query}`);
+  const body = await parseBody(res);
+  if (!res.ok) throw new Error(body?.error || `Failed to load group products (${res.status})`);
+  return body;
+}
+
+export async function apiAdminRenameGroup(sourceName, newSourceName) {
+  const res = await fetchWithFallback(`/admin/groups/${encodeURIComponent(sourceName)}`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ new_source_name: newSourceName }),
+  });
+  const body = await parseBody(res);
+  if (!res.ok) throw new Error(body?.error || `Failed to rename group (${res.status})`);
+  return body;
+}
+
+export async function apiAdminDeleteGroup(sourceName, removeOrphans = true) {
+  const query = `?remove_orphans=${removeOrphans ? '1' : '0'}`;
+  const res = await fetchWithFallback(`/admin/groups/${encodeURIComponent(sourceName)}${query}`, {
+    method: 'DELETE',
+  });
+  const body = await parseBody(res);
+  if (!res.ok) throw new Error(body?.error || `Failed to delete group (${res.status})`);
+  return body;
+}
+
+export async function apiAdminUpdateGroupProduct(sourceName, barcode, payload) {
+  const res = await fetchWithFallback(
+    `/admin/groups/${encodeURIComponent(sourceName)}/products/${encodeURIComponent(barcode)}`,
+    {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  );
+  const body = await parseBody(res);
+  if (!res.ok) throw new Error(body?.error || `Failed to update group product (${res.status})`);
+  return body;
+}
+
+export async function apiAdminDeleteGroupProduct(sourceName, barcode, removeOrphan = true) {
+  const query = `?remove_orphan=${removeOrphan ? '1' : '0'}`;
+  const res = await fetchWithFallback(
+    `/admin/groups/${encodeURIComponent(sourceName)}/products/${encodeURIComponent(barcode)}${query}`,
+    {
+      method: 'DELETE',
+    },
+  );
+  const body = await parseBody(res);
+  if (!res.ok) throw new Error(body?.error || `Failed to delete group product (${res.status})`);
+  return body;
+}
+
+export async function apiAdminListProducts(search = '') {
+  const query = search ? `?search=${encodeURIComponent(search)}` : '';
+  const res = await fetchWithFallback(`/admin/products${query}`);
+  const body = await parseBody(res);
+  if (!res.ok) throw new Error(body?.error || `Failed to list products (${res.status})`);
+  return body?.products || [];
+}
+
+export async function apiAdminUpdateProduct(barcode, payload) {
+  const res = await fetchWithFallback(`/admin/products/${encodeURIComponent(barcode)}`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const body = await parseBody(res);
+  if (!res.ok) throw new Error(body?.error || `Failed to update product (${res.status})`);
+  return body;
+}
+
+export async function apiAdminDeleteProduct(barcode) {
+  const res = await fetchWithFallback(`/admin/products/${encodeURIComponent(barcode)}`, {
+    method: 'DELETE',
+  });
+  const body = await parseBody(res);
+  if (!res.ok) throw new Error(body?.error || `Failed to delete product (${res.status})`);
+  return body;
+}

@@ -4,6 +4,7 @@ const cors = require('cors');
 const { importRoutes } = require('./routes/importRoutes');
 const { productRoutes } = require('./routes/productRoutes');
 const { mappingTemplateRoutes } = require('./routes/mappingTemplateRoutes');
+const { adminRoutes } = require('./routes/adminRoutes');
 
 function createApp() {
   const app = express();
@@ -19,6 +20,7 @@ function createApp() {
   app.use(importRoutes());
   app.use(productRoutes());
   app.use(mappingTemplateRoutes());
+  app.use(adminRoutes());
 
   // Fallback error handler (kept last).
   app.use((err, _req, res, _next) => {

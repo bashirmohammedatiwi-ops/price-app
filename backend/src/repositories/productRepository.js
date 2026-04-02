@@ -1,10 +1,10 @@
 function createProductRepository(db) {
   const upsertStmt = db.prepare(`
     INSERT INTO products (barcode, name, created_at, updated_at)
-    VALUES (@barcode, @name, datetime('now'), datetime('now'))
+    VALUES (@barcode, @name, strftime('%Y-%m-%d %H:%M:%f','now'), strftime('%Y-%m-%d %H:%M:%f','now'))
     ON CONFLICT(barcode) DO UPDATE SET
       name = COALESCE(excluded.name, products.name),
-      updated_at = datetime('now')
+      updated_at = strftime('%Y-%m-%d %H:%M:%f','now')
   `);
 
   const selectIdStmt = db.prepare(`
@@ -33,8 +33,16 @@ function createProductRepository(db) {
       FROM products p
       LEFT JOIN product_sources ps
         ON ps.product_id = p.id
+       AND ps.id = (
+         SELECT ps3.id
+         FROM product_sources ps3
+         WHERE ps3.product_id = p.id
+           AND ps3.source_name = ps.source_name
+         ORDER BY ps3.updated_at DESC, ps3.id DESC
+         LIMIT 1
+       )
       WHERE p.barcode = @barcode
-      ORDER BY ps.price ASC
+      ORDER BY ps.updated_at DESC
     `);
 
     const rows = stmt.all({ barcode });
