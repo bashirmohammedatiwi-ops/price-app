@@ -196,36 +196,22 @@ button.primary {
   background: #991b1b;
 }
 
-/* ——— Engine switcher ——— */
-.engine-switcher {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 8px;
+/* ——— Engine (library) select ——— */
+.engine-row {
+  margin-bottom: 4px;
 }
 
-.engine-btn {
-  padding: 10px 8px;
-  font-size: 0.68rem;
-  font-weight: 900;
-  line-height: 1.25;
-  border-width: 2px;
-}
-
-.engine-btn.active {
-  background: var(--lime);
-  box-shadow: var(--shadow-sm);
-}
-
-.engine-hint {
-  margin: 0 0 12px;
-  padding: 10px;
-  font-size: 0.78rem;
-  font-weight: 700;
+.engine-select {
+  width: 100%;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 800;
   color: var(--ink);
-  background: var(--accent-soft);
-  border: 2px dashed var(--border);
+  background: var(--paper);
+  border: 3px solid var(--border);
   border-radius: var(--radius);
+  cursor: pointer;
 }
 
 /* ——— Fullscreen scanner ——— */

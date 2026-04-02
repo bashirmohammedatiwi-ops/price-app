@@ -46,37 +46,17 @@ const isIOS =
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 
 const ENGINE_OPTIONS = [
-  {
-    id: 'zxingBrowser',
-    label: 'ZXing Browser',
-    hint: 'مكتبة ZXing Browser (متوازن)',
-  },
-  {
-    id: 'html5Qrcode',
-    label: 'html5-qrcode',
-    hint: 'مكتبة html5-qrcode (دعم واسع للأجهزة)',
-  },
-  {
-    id: 'quagga2',
-    label: 'Quagga2',
-    hint: 'مكتبة Quagga2 (1D barcode مخصص)',
-  },
-  {
-    id: 'barcodeDetector',
-    label: 'BarcodeDetector',
-    hint: 'Web BarcodeDetector (أداء عالي إذا كان مدعوم)',
-  },
-  {
-    id: 'zxingLibrary',
-    label: 'ZXing Library',
-    hint: 'ZXing Library مباشرة (canvas decoding)',
-  },
+  { id: 'zxingBrowser', label: 'ZXing Browser' },
+  { id: 'html5Qrcode', label: 'html5-qrcode' },
+  { id: 'quagga2', label: 'Quagga2' },
+  { id: 'barcodeDetector', label: 'BarcodeDetector' },
+  { id: 'zxingLibrary', label: 'ZXing Library' },
 ];
 
 const app = document.querySelector('#app');
-const engineButtonsHtml = ENGINE_OPTIONS.map(
-  (engine, idx) =>
-    `<button type="button" class="engine-btn ${idx === 0 ? 'active' : ''}" data-engine-id="${engine.id}">${engine.label}</button>`,
+const engineSelectOptionsHtml = ENGINE_OPTIONS.map(
+  (engine) =>
+    `<option value="${engine.id}"${engine.id === 'zxingBrowser' ? ' selected' : ''}>${engine.label}</option>`,
 ).join('');
 
 app.innerHTML = `
@@ -93,10 +73,12 @@ app.innerHTML = `
         <button type="button" id="fastScannerBtn" class="scan-btn scan-btn-fast">سريع</button>
       </div>
 
-      <div class="engine-switcher">
-        ${engineButtonsHtml}
+      <div class="row engine-row">
+        <label for="engineSelect">مكتبة المسح</label>
+        <select id="engineSelect" class="engine-select" aria-label="مكتبة المسح">
+          ${engineSelectOptionsHtml}
+        </select>
       </div>
-      <div id="engineHint" class="engine-hint">${ENGINE_OPTIONS[0].hint}</div>
 
       <div class="row">
         <label for="barcodeInput">اكتب الباركود</label>
@@ -247,18 +229,9 @@ function setStatus(msg, type = '') {
   el.className = `status ${type}`.trim();
 }
 
-function getEngineById(engineId) {
-  return ENGINE_OPTIONS.find((e) => e.id === engineId) || ENGINE_OPTIONS[0];
-}
-
 function updateEngineUi() {
-  const hintEl = $('engineHint');
-  const current = getEngineById(state.selectedEngineId);
-  if (hintEl) hintEl.textContent = current.hint;
-
-  document.querySelectorAll('.engine-btn').forEach((btn) => {
-    btn.classList.toggle('active', btn.dataset.engineId === state.selectedEngineId);
-  });
+  const sel = $('engineSelect');
+  if (sel) sel.value = state.selectedEngineId;
 }
 
 function setScanButtonsState(running, fastMode = false) {
@@ -865,13 +838,13 @@ async function startScanner(mode = 'normal', cameraIdOverride = null) {
     state.scannerRunning = true;
     setTorchUi();
     await applyIosFocusStabilityHints();
-    setStatus(`الماسح يعمل عبر ${getEngineById(state.selectedEngineId).label}.`, 'ok');
+    setStatus('الماسح يعمل.', 'ok');
   } catch (e) {
     await stopActiveEngine();
     state.scannerRunning = false;
     $('scannerShell').classList.add('hidden');
     setScanButtonsState(false, false);
-    setStatus(`تعذر تشغيل ${getEngineById(state.selectedEngineId).label}: ${e?.message || 'Unknown error'}`, 'error');
+    setStatus('تعذر تشغيل الماسح.', 'error');
   } finally {
     state.scannerBusy = false;
   }
@@ -928,10 +901,8 @@ $('cameraSelect').addEventListener('change', async () => {
   }
 });
 
-document.querySelectorAll('.engine-btn').forEach((btn) => {
-  btn.addEventListener('click', async () => {
-    await setEngine(btn.dataset.engineId);
-  });
+$('engineSelect').addEventListener('change', async () => {
+  await setEngine($('engineSelect').value);
 });
 
 document.addEventListener('visibilitychange', async () => {
