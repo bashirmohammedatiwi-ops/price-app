@@ -84,6 +84,10 @@ docker compose up -d
 ./deploy/nginx/apply_to_existing_proxy.sh demaalhayaadelivery.online delivery-nginx
 ```
 
+على السيرفر يجب تثبيت **`python3`** (يُستخدم لإدراج سطر `include` تلقائياً داخل كتلة `server` الصحيحة، غالباً `listen 443`). إن لم يكن مثبتاً: `apt install -y python3`.
+
+إذا كان `server_name` يستخدم متغيراً مثل `${DOMAIN}` وليس اسم الدومين حرفياً، السكربت يعتمد على أسطر **`ssl_certificate`** / **`ssl_certificate_key`** (مسار Let’s Encrypt) لمعرفة الكتلة الصحيحة.
+
 تحقق: `curl -sS https://demaalhayaadelivery.online/price-api/health` يجب أن يعيد `{"ok":true}` وليس HTML صفحة التوصيل.
 
 **حل أدوم:** أضف في **قالب nginx لمشروع التوصيل** (الذي يُبنى مع الصورة) سطرًا ثابتًا:
