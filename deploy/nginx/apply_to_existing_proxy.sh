@@ -55,4 +55,9 @@ echo "  http://${DOMAIN}/price/ -> client (5002)"
 echo "  http://${DOMAIN}/price-admin/ -> admin (5001)"
 echo "  http://${DOMAIN}/price-api/ -> backend (5000)"
 echo
+echo "Verify: curl -sS https://${DOMAIN}/price-api/health  (expect JSON with ok:true)"
+echo
+echo "NOTE: If you rebuild/redeploy the DELIVERY app nginx container, re-run this script"
+echo "      or the domain will serve the delivery app under /price/ again."
+echo
 echo "If your proxy handles TLS, keep using the same TLS config for ${DOMAIN}."

@@ -64,6 +64,34 @@ docker compose up -d --build
 
 هذا يحل الربط فورًا بدون إيقاف بقية المشاريع.
 
+### لماذا يعمل على IP ولا يعمل على الدومين؟
+
+- **الدومين** يمر عبر Nginx تطبيق التوصيل (أو أي reverse proxy) على `80/443`؛ بدون قواعد `/price/` و`/price-api/` يذهب كل شيء لتطبيق التوصيل أو لـ `location /`.
+- **الـ IP مع منفذ** (مثل `http://IP:5002/price/`) يصل مباشرة لحاويات مشروع الأسعار دون ذلك الـ proxy، فيبدو أن «كل شيء يعمل» بينما الدومين معطوب.
+
+### بعد تحديث أو إعادة نشر تطبيق التوصيل (مهم)
+
+عند تحديث مشروع التوصيل على [demaalhayaadelivery.online](https://demaalhayaadelivery.online/) غالبًا ما يُعاد **بناء حاوية Nginx** أو يُستبدل محتوى `/etc/nginx/conf.d/`، فيُحذف:
+
+1. الملف `price-app-paths.inc` الذي يُنسخ بالسكربت، و/أو  
+2. سطر `include /etc/nginx/conf.d/price-app-paths.inc;` داخل كتلة `server` للدومين.
+
+**بعد كل deploy للتوصيل** شغّل مرة أخرى (بعد التأكد أن مشروع الأسعار يعمل بـ `docker compose`):
+
+```bash
+cd ~/price-app
+docker compose up -d
+./deploy/nginx/apply_to_existing_proxy.sh demaalhayaadelivery.online delivery-nginx
+```
+
+تحقق: `curl -sS https://demaalhayaadelivery.online/price-api/health` يجب أن يعيد `{"ok":true}` وليس HTML صفحة التوصيل.
+
+**حل أدوم:** أضف في **قالب nginx لمشروع التوصيل** (الذي يُبنى مع الصورة) سطرًا ثابتًا:
+
+`include /etc/nginx/conf.d/price-app-paths.inc;`
+
+داخل كتلة `server` لـ `demaalhayaadelivery.online`، ثم اجعل السكربت أعلاه يحدّث الملف `price-app-paths.inc` فقط بعد كل تحديث — حتى لا تضطر لإعادة حقن سطر الـ `include` يدويًا.
+
 ## إعداد Nginx للدومين (في حال لا يوجد Proxy آخر)
 
 الملف الجاهز موجود في:
