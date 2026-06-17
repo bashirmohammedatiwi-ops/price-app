@@ -53,10 +53,6 @@ const ENGINE_OPTIONS = [
 ];
 
 const app = document.querySelector('#app');
-const engineSelectOptionsHtml = ENGINE_OPTIONS.map(
-  (engine) =>
-    `<option value="${engine.id}"${engine.id === 'zxingBrowser' ? ' selected' : ''}>${engine.label}</option>`,
-).join('');
 
 app.innerHTML = `
   <div class="client-shell">
@@ -66,21 +62,11 @@ app.innerHTML = `
 
     <main class="container">
     <section class="card scanner-card">
-      <div class="scan-two-btns">
-        <button id="toggleScannerBtn" class="scan-btn scan-btn-normal" type="button">عادي</button>
-        <button type="button" id="fastScannerBtn" class="scan-btn scan-btn-fast">سريع</button>
-      </div>
-
-      <div class="row engine-row">
-        <label for="engineSelect">مكتبة المسح</label>
-        <select id="engineSelect" class="engine-select" aria-label="مكتبة المسح">
-          ${engineSelectOptionsHtml}
-        </select>
-      </div>
+      <button id="toggleScannerBtn" class="scan-btn scan-btn-main" type="button">مسح الباركود</button>
 
       <div class="row">
         <label for="barcodeInput">اكتب الباركود</label>
-        <input id="barcodeInput" type="text" placeholder="مثال: 1234567890" />
+        <input id="barcodeInput" type="text" placeholder="مثال: 1234567890" inputmode="numeric" autocomplete="off" />
         <button id="searchBtn" class="primary">عرض المنتج</button>
       </div>
       <div class="scanner-shell hidden" id="scannerShell">
@@ -243,34 +229,21 @@ function setStatus(msg, type = '') {
 }
 
 function updateEngineUi() {
-  const sel = $('engineSelect');
-  if (sel) sel.value = state.selectedEngineId;
+  /* مكتبة المسح ثابتة (zxingBrowser) — لا واجهة اختيار */
 }
 
-function setScanButtonsState(running, fastMode = false) {
-  const normalBtn = $('toggleScannerBtn');
-  const fastBtn = $('fastScannerBtn');
-  if (!normalBtn || !fastBtn) return;
+function setScanButtonsState(running) {
+  const btn = $('toggleScannerBtn');
+  if (!btn) return;
 
   if (!running) {
-    normalBtn.textContent = 'عادي';
-    normalBtn.classList.remove('active');
-    fastBtn.textContent = 'سريع';
-    fastBtn.classList.remove('active');
+    btn.textContent = 'مسح الباركود';
+    btn.classList.remove('active');
     return;
   }
 
-  if (fastMode) {
-    fastBtn.textContent = 'إيقاف سريع';
-    fastBtn.classList.add('active');
-    normalBtn.textContent = 'عادي';
-    normalBtn.classList.remove('active');
-  } else {
-    normalBtn.textContent = 'إيقاف';
-    normalBtn.classList.add('active');
-    fastBtn.textContent = 'سريع';
-    fastBtn.classList.remove('active');
-  }
+  btn.textContent = 'إيقاف المسح';
+  btn.classList.add('active');
 }
 
 function setTorchUi() {
@@ -1021,25 +994,24 @@ async function stopScanner() {
     state.scannerRunning = false;
     state.torchOn = false;
     $('scannerShell').classList.add('hidden');
-    setScanButtonsState(false, false);
+    setScanButtonsState(false);
     $('toggleTorchBtn').classList.add('hidden');
   } finally {
     state.scannerBusy = false;
   }
 }
 
-async function startScanner(mode = 'normal') {
+async function startScanner() {
   if (state.scannerBusy) return;
 
-  // If scanner is already running, switch mode by restart.
   if (state.scannerRunning) {
     await stopScanner();
   }
 
-  state.fastMode = mode === 'fast';
+  state.fastMode = false;
   state.scannerBusy = true;
   $('scannerShell').classList.remove('hidden');
-  setScanButtonsState(true, state.fastMode);
+  setScanButtonsState(true);
 
   try {
     assertCameraAllowedContext();
@@ -1061,7 +1033,7 @@ async function startScanner(mode = 'normal') {
     await stopActiveEngine();
     state.scannerRunning = false;
     $('scannerShell').classList.add('hidden');
-    setScanButtonsState(false, false);
+    setScanButtonsState(false);
     setStatus('تعذر تشغيل الماسح.', 'error');
   } finally {
     state.scannerBusy = false;
@@ -1076,7 +1048,7 @@ async function setEngine(engineId) {
   updateEngineUi();
 
   if (state.scannerRunning) {
-    await startScanner(state.fastMode ? 'fast' : 'normal');
+    await startScanner();
   }
 }
 
@@ -1086,19 +1058,11 @@ $('barcodeInput').addEventListener('keydown', (e) => {
 });
 
 $('toggleScannerBtn').addEventListener('click', async () => {
-  if (state.scannerRunning && !state.fastMode) {
+  if (state.scannerRunning) {
     await stopScanner();
     return;
   }
-  await startScanner('normal');
-});
-
-$('fastScannerBtn').addEventListener('click', async () => {
-  if (state.scannerRunning && state.fastMode) {
-    await stopScanner();
-    return;
-  }
-  await startScanner('fast');
+  await startScanner();
 });
 
 $('toggleTorchBtn').addEventListener('click', async () => {
@@ -1107,10 +1071,6 @@ $('toggleTorchBtn').addEventListener('click', async () => {
 
 $('stopScannerOverlayBtn').addEventListener('click', async () => {
   await stopScanner();
-});
-
-$('engineSelect').addEventListener('change', async () => {
-  await setEngine($('engineSelect').value);
 });
 
 document.addEventListener('visibilitychange', async () => {
