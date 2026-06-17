@@ -99,7 +99,6 @@ docker exec "${TARGET_PROXY_CONTAINER}" nginx -s reload
 
 echo "Path routing applied in ${TARGET_PROXY_CONTAINER} on domain ${DOMAIN}:"
 echo "  http://${DOMAIN}/price/ -> client (5002)"
-echo "  http://${DOMAIN}/price-admin/ -> admin (5001)"
 echo "  http://${DOMAIN}/price-api/ -> backend (5000)"
 echo
 echo "Verify: curl -sS https://${DOMAIN}/price-api/health  (expect JSON with ok:true)"

@@ -13,15 +13,6 @@ services:
     volumes:
       - backend_data:/data
     restart: unless-stopped
-  admin-web:
-    build:
-      context: ./web/admin
-      dockerfile: Dockerfile
-    ports:
-      - "5001:8080"
-    depends_on:
-      - backend
-    restart: unless-stopped
   client-web:
     build:
       context: ./web/client

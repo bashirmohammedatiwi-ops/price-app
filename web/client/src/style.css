@@ -537,3 +537,63 @@ button.primary {
   font-size: 0.9rem;
   line-height: 1.5;
 }
+
+.consumer-price-card {
+  margin: 14px 0;
+  padding: 16px;
+  text-align: center;
+  background: var(--lime);
+  border: 3px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.consumer-price-label {
+  font-size: 0.85rem;
+  font-weight: 900;
+  margin-bottom: 6px;
+}
+
+.consumer-price-value {
+  font-size: clamp(1.8rem, 6vw, 2.4rem);
+  font-weight: 950;
+  letter-spacing: -0.02em;
+}
+
+.movements-card {
+  margin: 14px 0;
+  padding: 12px;
+  background: var(--panel);
+  border: 3px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.movements-title {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 950;
+}
+
+.movements-table-wrap {
+  overflow-x: auto;
+}
+
+.movements-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.movements-table th,
+.movements-table td {
+  padding: 8px 6px;
+  border-bottom: 2px solid rgba(10, 10, 10, 0.12);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.movements-table th {
+  font-weight: 900;
+  background: var(--accent-soft);
+}

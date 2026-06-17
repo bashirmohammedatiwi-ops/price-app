@@ -5,6 +5,7 @@ const { importRoutes } = require('./routes/importRoutes');
 const { productRoutes } = require('./routes/productRoutes');
 const { mappingTemplateRoutes } = require('./routes/mappingTemplateRoutes');
 const { adminRoutes } = require('./routes/adminRoutes');
+const { syncRoutes } = require('./routes/syncRoutes');
 
 function createApp() {
   const app = express();
@@ -21,6 +22,7 @@ function createApp() {
   app.use(productRoutes());
   app.use(mappingTemplateRoutes());
   app.use(adminRoutes());
+  app.use(syncRoutes());
 
   // Fallback error handler (kept last).
   app.use((err, _req, res, _next) => {

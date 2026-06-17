@@ -39,12 +39,20 @@ function migrateProductSourcesMultidate(db) {
   db.exec('CREATE INDEX IF NOT EXISTS idx_product_sources_source ON product_sources(source_name);');
 }
 
+function migrateProductsConsumerPrice(db) {
+  const names = db.prepare('PRAGMA table_info(products)').all().map((c) => c.name);
+  if (!names.includes('consumer_price')) {
+    db.exec('ALTER TABLE products ADD COLUMN consumer_price REAL');
+  }
+}
+
 function migrate(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS products (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       barcode TEXT NOT NULL UNIQUE,
       name TEXT,
+      consumer_price REAL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -85,6 +93,29 @@ function migrate(db) {
       }
     }
   }
+
+  migrateProductsConsumerPrice(db);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS purchase_movements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL,
+      supplier_name TEXT NOT NULL DEFAULT '',
+      invoice_number TEXT NOT NULL DEFAULT '',
+      quantity REAL NOT NULL DEFAULT 0,
+      unit_price REAL NOT NULL DEFAULT 0,
+      total_price REAL NOT NULL DEFAULT 0,
+      movement_date TEXT,
+      date_key TEXT NOT NULL DEFAULT '',
+      edari_line_key TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+      UNIQUE(product_id, edari_line_key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_purchase_movements_product ON purchase_movements(product_id);
+    CREATE INDEX IF NOT EXISTS idx_purchase_movements_date ON purchase_movements(date_key);
+  `);
 }
 
 module.exports = { migrate };

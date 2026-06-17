@@ -3,8 +3,9 @@
 هذا المشروع يعمل الآن على نفس الدومين الرئيسي عبر امتدادات (paths):
 
 - `https://demaalhayaadelivery.online/price/` تطبيق المستخدم (بحث باركود + ماسح كاميرا)
-- `https://demaalhayaadelivery.online/price-admin/` لوحة التحكم
 - `https://demaalhayaadelivery.online/price-api/health` API الصحة
+
+> **ملاحظة:** رفع البيانات يتم من **تطبيق الإدارة (Edari Admin)** عبر قسم «مزامنة الأسعار» — وليس من لوحة ويب منفصلة.
 
 ## تشغيل محلي سريع
 
@@ -12,14 +13,6 @@
 
 ```bash
 cd backend
-npm install
-npm run dev
-```
-
-### Admin Web
-
-```bash
-cd web/admin
 npm install
 npm run dev
 ```
@@ -32,6 +25,8 @@ npm install
 npm run dev
 ```
 
+> لوحة التحكم القديمة (`web/admin`) لم تعد جزءاً من النشر — استخدم تطبيق Edari Admin → «مزامنة الأسعار».
+
 ## Docker Compose (الخدمات الداخلية)
 
 ```bash
@@ -42,7 +37,6 @@ docker compose ps
 
 المنافذ بعد التشغيل:
 - Backend: `5000`
-- Admin Web: `5001`
 - Client Web: `5002`
 
 ## متطلبات الدومين
@@ -116,6 +110,6 @@ cd ~/price-app
 - الواجهتان تستخدمان API داخليًا على المسار `/api` تلقائيًا (بدون إعداد يدوي).
 - بعد تطبيق السكربت على proxy الرئيسي:
   - `https://demaalhayaadelivery.online/price/` للتطبيق
-  - `https://demaalhayaadelivery.online/price-admin/` للوحة التحكم
   - `https://demaalhayaadelivery.online/price-api/health` للـ API
+  - رفع البيانات: تطبيق Edari Admin → «مزامنة الأسعار»
 - السكربت يعدل هذا الدومين فقط ولا يعطل المواقع الأخرى.

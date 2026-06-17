@@ -301,15 +301,23 @@ function sortKeyForSourceDate(raw) {
 
 function renderProduct(data) {
   const sources = Array.isArray(data.sources) ? data.sources.slice() : [];
-  if (!sources.length) {
-    $('resultWrap').innerHTML = `<div class="muted">لا توجد أسعار لهذا الباركود: ${data.barcode || '-'}</div>`;
+  const movements = Array.isArray(data.movements) ? data.movements.slice() : [];
+  const consumerPrice =
+    data.consumer_price != null && Number.isFinite(Number(data.consumer_price))
+      ? Number(data.consumer_price)
+      : null;
+
+  if (!sources.length && !movements.length && consumerPrice == null) {
+    $('resultWrap').innerHTML = `<div class="muted">لا توجد بيانات لهذا الباركود: ${data.barcode || '-'}</div>`;
     return;
   }
 
-  const cheapest = sources.reduce(
-    (best, s) => (!best || Number(s.price) < Number(best.price) ? s : best),
-    null,
-  );
+  const cheapest = sources.length
+    ? sources.reduce(
+        (best, s) => (!best || Number(s.price) < Number(best.price) ? s : best),
+        null,
+      )
+    : null;
 
   const bySource = new Map();
   for (const s of sources) {
@@ -332,34 +340,82 @@ function renderProduct(data) {
     (a, b) => Math.min(...a.rows.map((r) => Number(r.price || 0))) - Math.min(...b.rows.map((r) => Number(r.price || 0))),
   );
 
-  const html = `
-    <div class="product-head">
-      <div><b>${data.name || 'بدون اسم'}</b><div class="muted">الباركود: ${data.barcode || '-'}</div></div>
-      <div class="price-badge">الأرخص: ${Number(cheapest.price || 0).toFixed(2)}</div>
-    </div>
-    ${blocks
-      .map(({ sourceName, rows }) => {
-        const rowsHtml = rows
-          .map((s) => {
-            const fields = s.fields || {};
-            const details = Object.keys(fields).length
-              ? Object.entries(fields).map(([k, v]) => `<span class="field-pill">${k}: ${String(v)}</span>`).join('')
-              : '<span class="muted">لا توجد تفاصيل إضافية</span>';
-            const dateLabel = s.source_date
-              ? formatSourceDateClient(s.source_date)
-              : 'بدون تاريخ';
-            return `<div class="source-price-block">
+  const consumerHtml =
+    consumerPrice != null
+      ? `<div class="consumer-price-card">
+          <div class="consumer-price-label">سعر المستهلك الحالي</div>
+          <div class="consumer-price-value">${consumerPrice.toFixed(3).replace(/\.?0+$/, '')}</div>
+        </div>`
+      : '';
+
+  const movementsHtml = movements.length
+    ? `<section class="movements-card">
+        <h3 class="movements-title">حركة المشتريات</h3>
+        <div class="movements-table-wrap">
+          <table class="movements-table">
+            <thead>
+              <tr>
+                <th>التاريخ</th>
+                <th>المصدر</th>
+                <th>الفاتورة</th>
+                <th>الكمية</th>
+                <th>السعر</th>
+                <th>الإجمالي</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${movements
+                .map(
+                  (m) => `<tr>
+                    <td>${m.date ? formatSourceDateClient(m.date) : '—'}</td>
+                    <td>${m.supplier || '—'}</td>
+                    <td>${m.invoice || '—'}</td>
+                    <td>${Number(m.quantity || 0)}</td>
+                    <td>${Number(m.unit_price || 0).toFixed(3).replace(/\.?0+$/, '')}</td>
+                    <td>${Number(m.total_price || 0).toFixed(3).replace(/\.?0+$/, '')}</td>
+                  </tr>`,
+                )
+                .join('')}
+            </tbody>
+          </table>
+        </div>
+      </section>`
+    : '';
+
+  const sourcesHtml = blocks.length
+    ? blocks
+        .map(({ sourceName, rows }) => {
+          const rowsHtml = rows
+            .map((s) => {
+              const fields = s.fields || {};
+              const details = Object.keys(fields).length
+                ? Object.entries(fields).map(([k, v]) => `<span class="field-pill">${k}: ${String(v)}</span>`).join('')
+                : '<span class="muted">لا توجد تفاصيل إضافية</span>';
+              const dateLabel = s.source_date
+                ? formatSourceDateClient(s.source_date)
+                : 'بدون تاريخ';
+              return `<div class="source-price-block">
               <div class="source-price-line"><span class="source-date-tag">${dateLabel}</span><span class="source-price-val">${Number(s.price || 0).toFixed(2)}</span></div>
               <div class="field-row">${details}</div>
             </div>`;
-          })
-          .join('');
-        return `<div class="source-card">
+            })
+            .join('');
+          return `<div class="source-card">
           <div class="source-group-title">${sourceName}</div>
           ${rowsHtml}
         </div>`;
-      })
-      .join('')}
+        })
+        .join('')
+    : '';
+
+  const html = `
+    <div class="product-head">
+      <div><b>${data.name || 'بدون اسم'}</b><div class="muted">الباركود: ${data.barcode || '-'}</div></div>
+      ${cheapest ? `<div class="price-badge">الأرخص: ${Number(cheapest.price || 0).toFixed(2)}</div>` : ''}
+    </div>
+    ${consumerHtml}
+    ${movementsHtml}
+    ${sourcesHtml}
   `;
   $('resultWrap').innerHTML = html;
 }
