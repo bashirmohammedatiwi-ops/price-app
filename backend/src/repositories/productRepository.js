@@ -23,7 +23,7 @@ function createProductRepository(db) {
 
   function getProductWithSourcesByBarcode({ barcode }) {
     const productRow = db.prepare(`
-      SELECT id, barcode, name, consumer_price
+      SELECT id, barcode, name, consumer_price, stock_balance
       FROM products
       WHERE barcode = @barcode
     `).get({ barcode });
@@ -72,6 +72,10 @@ function createProductRepository(db) {
       consumer_price:
         productRow.consumer_price != null && Number.isFinite(Number(productRow.consumer_price))
           ? Number(productRow.consumer_price)
+          : null,
+      stock_balance:
+        productRow.stock_balance != null && Number.isFinite(Number(productRow.stock_balance))
+          ? Number(productRow.stock_balance)
           : null,
       sources: [],
       movements: movements.map((m) => ({

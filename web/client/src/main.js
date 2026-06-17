@@ -409,9 +409,13 @@ function renderProduct(data) {
     data.consumer_price != null && Number.isFinite(Number(data.consumer_price))
       ? Number(data.consumer_price)
       : null;
+  const stockBalance =
+    data.stock_balance != null && Number.isFinite(Number(data.stock_balance))
+      ? Number(data.stock_balance)
+      : null;
   const summary = summarizeMovements(movements);
 
-  if (!sources.length && !summary.count && consumerPrice == null) {
+  if (!sources.length && !summary.count && consumerPrice == null && stockBalance == null) {
     $('resultWrap').innerHTML = `
       <div class="empty-state empty-state-warn">
         <div class="empty-state-icon" aria-hidden="true">?</div>
@@ -444,17 +448,23 @@ function renderProduct(data) {
     : '';
 
   const priceHtml =
-    consumerPrice != null
+    consumerPrice != null || stockBalance != null
       ? `
-      <section class="price-hero" aria-label="سعر المستهلك">
-        <div class="price-hero-label">سعر المستهلك الحالي</div>
-        <div class="price-hero-value">${esc(fmtMoney(consumerPrice))}</div>
-        ${
-          summary.latest
-            ? `<div class="price-hero-note">آخر شراء: ${esc(fmtDateDisplay(summary.latest.date))} · ${esc(summary.latest.supplier || '—')}</div>`
-            : ''
-        }
-      </section>`
+      <section class="price-hero-row" aria-label="السعر والرصيد">
+        <div class="price-hero-cell${consumerPrice == null ? ' price-hero-cell-muted' : ''}">
+          <div class="price-hero-label">سعر المستهلك</div>
+          <div class="price-hero-value${consumerPrice == null ? ' price-hero-value-muted' : ''}">${consumerPrice != null ? esc(fmtMoney(consumerPrice)) : '—'}</div>
+        </div>
+        <div class="price-hero-cell price-hero-cell-stock${stockBalance == null ? ' price-hero-cell-muted' : ''}">
+          <div class="price-hero-label">الرصيد النهائي</div>
+          <div class="price-hero-value price-hero-value-stock${stockBalance == null ? ' price-hero-value-muted' : ''}${stockBalance != null && stockBalance <= 0 ? ' price-hero-value-low' : ''}">${stockBalance != null ? esc(fmtQty(stockBalance)) : '—'}</div>
+        </div>
+      </section>
+      ${
+        summary.latest
+          ? `<div class="price-hero-note">آخر شراء: ${esc(fmtDateDisplay(summary.latest.date))} · ${esc(summary.latest.supplier || '—')}</div>`
+          : ''
+      }`
       : `<div class="price-hero price-hero-missing">
           <div class="price-hero-label">سعر المستهلك</div>
           <div class="price-hero-value price-hero-value-muted">غير متوفر</div>

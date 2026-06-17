@@ -46,6 +46,13 @@ function migrateProductsConsumerPrice(db) {
   }
 }
 
+function migrateProductsStockBalance(db) {
+  const names = db.prepare('PRAGMA table_info(products)').all().map((c) => c.name);
+  if (!names.includes('stock_balance')) {
+    db.exec('ALTER TABLE products ADD COLUMN stock_balance REAL');
+  }
+}
+
 function migrate(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS products (
@@ -95,6 +102,7 @@ function migrate(db) {
   }
 
   migrateProductsConsumerPrice(db);
+  migrateProductsStockBalance(db);
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS purchase_movements (

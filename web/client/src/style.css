@@ -515,6 +515,37 @@ button.primary {
   box-shadow: var(--shadow-sm);
 }
 
+.price-hero-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 14px 16px 0;
+}
+
+.price-hero-cell {
+  padding: 16px 12px;
+  text-align: center;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, #fff7ed, #ffedd5);
+  border: 1px solid #fdba74;
+  box-shadow: var(--shadow-sm);
+}
+
+.price-hero-cell-stock {
+  background: linear-gradient(135deg, #ecfdf5, #ccfbf1);
+  border-color: #5eead4;
+}
+
+.price-hero-cell-muted {
+  background: #f8fafc;
+  border-color: var(--border);
+}
+
+.price-hero-cell-muted.price-hero-cell-stock {
+  background: #f8fafc;
+  border-color: var(--border);
+}
+
 .price-hero-missing {
   background: #f8fafc;
   border-color: var(--border);
@@ -524,6 +555,14 @@ button.primary {
   font-size: 0.82rem;
   font-weight: 800;
   color: var(--accent-deep);
+}
+
+.price-hero-cell-stock .price-hero-label {
+  color: #0f766e;
+}
+
+.price-hero-cell-muted .price-hero-label {
+  color: var(--muted);
 }
 
 .price-hero-missing .price-hero-label {
@@ -544,8 +583,17 @@ button.primary {
   color: var(--muted);
 }
 
+.price-hero-value-stock {
+  color: #0f766e;
+}
+
+.price-hero-value-low {
+  color: var(--err);
+}
+
 .price-hero-note {
-  margin-top: 10px;
+  margin: 10px 16px 0;
+  text-align: center;
   font-size: 0.78rem;
   font-weight: 700;
   color: #9a3412;

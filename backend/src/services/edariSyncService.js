@@ -26,6 +26,7 @@ function createEdariSyncService({ db, productRepository, purchaseMovementReposit
     barcode: z.string().min(1),
     name: z.string().optional().nullable(),
     consumer_price: z.union([z.number(), z.string()]).optional().nullable(),
+    stock_balance: z.union([z.number(), z.string()]).optional().nullable(),
   });
 
   const MovementSchema = z.object({
@@ -47,6 +48,14 @@ function createEdariSyncService({ db, productRepository, purchaseMovementReposit
     WHERE id = @id
   `);
 
+  const updateStockBalanceStmt = db.prepare(`
+    UPDATE products
+    SET stock_balance = @stock_balance,
+        name = COALESCE(@name, name),
+        updated_at = strftime('%Y-%m-%d %H:%M:%f','now')
+    WHERE id = @id
+  `);
+
   function syncPayload({ products = [], movements = [] }) {
     if (!Array.isArray(products)) products = [];
     if (!Array.isArray(movements)) movements = [];
@@ -58,6 +67,7 @@ function createEdariSyncService({ db, productRepository, purchaseMovementReposit
 
     let productsUpserted = 0;
     let consumerPricesUpdated = 0;
+    let stockBalancesUpdated = 0;
     let movementsUpserted = 0;
     const barcodeToId = new Map();
 
@@ -78,6 +88,7 @@ function createEdariSyncService({ db, productRepository, purchaseMovementReposit
             ? String(parsed.data.name).trim()
             : null;
         const consumerPrice = parseNumber(parsed.data.consumer_price, NaN);
+        const stockBalance = parseNumber(parsed.data.stock_balance, NaN);
 
         const existing = productRepository.upsertProduct({ barcode, name });
         barcodeToId.set(barcode, existing.id);
@@ -90,6 +101,15 @@ function createEdariSyncService({ db, productRepository, purchaseMovementReposit
             name,
           });
           consumerPricesUpdated += 1;
+        }
+
+        if (parsed.data.stock_balance != null && Number.isFinite(stockBalance)) {
+          updateStockBalanceStmt.run({
+            id: existing.id,
+            stock_balance: stockBalance,
+            name,
+          });
+          stockBalancesUpdated += 1;
         }
       }
 
@@ -142,6 +162,7 @@ function createEdariSyncService({ db, productRepository, purchaseMovementReposit
       ok: true,
       products_upserted: productsUpserted,
       consumer_prices_updated: consumerPricesUpdated,
+      stock_balances_updated: stockBalancesUpdated,
       movements_upserted: movementsUpserted,
     };
   }
