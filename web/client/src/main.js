@@ -105,9 +105,18 @@ app.innerHTML = `
       <div id="status" class="status">جاهز.</div>
     </section>
 
-    <section class="card">
-      <h2>تفاصيل المنتج</h2>
-      <div id="resultWrap" class="result-wrap">لا توجد نتيجة بعد.</div>
+    <section class="card result-card">
+      <div class="result-card-head">
+        <h2>بيانات المنتج</h2>
+        <p class="result-card-sub">سعر المستهلك وحركة المشتريات من Edari</p>
+      </div>
+      <div id="resultWrap" class="result-wrap">
+        <div class="empty-state">
+          <div class="empty-state-icon" aria-hidden="true">▦</div>
+          <p class="empty-state-title">لم يُمسح منتج بعد</p>
+          <p class="empty-state-text">استخدم الماسح أو اكتب الباركود لعرض السعر وحركة الشراء</p>
+        </div>
+      </div>
     </section>
     </main>
   </div>
@@ -285,18 +294,139 @@ function getBackendUrl() {
   return DEFAULT_URL.endsWith('/') ? DEFAULT_URL.slice(0, -1) : DEFAULT_URL;
 }
 
-function formatSourceDateClient(raw) {
-  if (raw == null || String(raw).trim() === '') return '';
-  const s = String(raw).trim();
-  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
-  return m ? m[1] : s.length > 20 ? s.slice(0, 20) : s;
+function esc(v) {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
-function sortKeyForSourceDate(raw) {
+function fmtMoney(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '—';
+  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+}
+
+function fmtQty(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '—';
+  return n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+
+function fmtDateDisplay(raw) {
+  if (raw == null || String(raw).trim() === '') return '—';
+  const s = String(raw).trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  return s.length > 10 ? s.slice(0, 10) : s;
+}
+
+function sortKeyForDate(raw) {
   if (raw == null || String(raw).trim() === '') return '';
   const s = String(raw).trim();
   const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
   return m ? m[1] : s;
+}
+
+function summarizeMovements(movements) {
+  const rows = movements.slice().sort((a, b) => sortKeyForDate(b.date).localeCompare(sortKeyForDate(a.date)));
+  let totalQty = 0;
+  let totalValue = 0;
+  const suppliers = new Set();
+
+  for (const m of rows) {
+    const qty = Number(m.quantity || 0);
+    const total = Number(m.total_price || 0);
+    const unit = Number(m.unit_price || 0);
+    totalQty += qty;
+    totalValue += total > 0 ? total : qty * unit;
+    if (m.supplier) suppliers.add(String(m.supplier).trim());
+  }
+
+  const avgPrice = totalQty > 0 ? totalValue / totalQty : null;
+  const latest = rows[0] || null;
+
+  return {
+    rows,
+    count: rows.length,
+    totalQty,
+    totalValue,
+    avgPrice,
+    latest,
+    supplierCount: suppliers.size,
+  };
+}
+
+function renderMovementRow(m, index) {
+  const qty = Number(m.quantity || 0);
+  const unit = Number(m.unit_price || 0);
+  const total = Number(m.total_price || 0) || qty * unit;
+  const isLatest = index === 0;
+
+  return `
+    <article class="movement-item${isLatest ? ' movement-item-latest' : ''}">
+      <div class="movement-item-top">
+        <time class="movement-date" datetime="${esc(m.date || '')}">${esc(fmtDateDisplay(m.date))}</time>
+        ${isLatest ? '<span class="movement-badge">آخر شراء</span>' : ''}
+      </div>
+      <div class="movement-supplier">${esc(m.supplier || '—')}</div>
+      <div class="movement-meta">
+        <span class="movement-meta-chip">فاتورة ${esc(m.invoice || '—')}</span>
+      </div>
+      <div class="movement-numbers">
+        <div class="movement-num">
+          <span class="movement-num-label">الكمية</span>
+          <strong>${esc(fmtQty(qty))}</strong>
+        </div>
+        <div class="movement-num">
+          <span class="movement-num-label">السعر</span>
+          <strong>${esc(fmtMoney(unit))}</strong>
+        </div>
+        <div class="movement-num movement-num-total">
+          <span class="movement-num-label">الإجمالي</span>
+          <strong>${esc(fmtMoney(total))}</strong>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function renderLegacySources(sources) {
+  if (!sources.length) return '';
+
+  const bySource = new Map();
+  for (const s of sources) {
+    const key = s.source || '-';
+    if (!bySource.has(key)) bySource.set(key, []);
+    bySource.get(key).push(s);
+  }
+
+  const blocks = [...bySource.entries()]
+    .map(([sourceName, rows]) => {
+      rows.sort((a, b) => sortKeyForDate(b.source_date).localeCompare(sortKeyForDate(a.source_date)));
+      const rowsHtml = rows
+        .map(
+          (s) => `
+          <div class="legacy-row">
+            <span class="legacy-date">${esc(fmtDateDisplay(s.source_date) || 'بدون تاريخ')}</span>
+            <span class="legacy-price">${esc(fmtMoney(s.price))}</span>
+          </div>`,
+        )
+        .join('');
+      return `
+        <div class="legacy-group">
+          <div class="legacy-group-title">${esc(sourceName)}</div>
+          ${rowsHtml}
+        </div>`;
+    })
+    .join('');
+
+  return `
+    <details class="legacy-block">
+      <summary>أسعار إضافية (${sources.length})</summary>
+      <div class="legacy-inner">${blocks}</div>
+    </details>`;
 }
 
 function renderProduct(data) {
@@ -306,52 +436,70 @@ function renderProduct(data) {
     data.consumer_price != null && Number.isFinite(Number(data.consumer_price))
       ? Number(data.consumer_price)
       : null;
+  const summary = summarizeMovements(movements);
 
-  if (!sources.length && !movements.length && consumerPrice == null) {
-    $('resultWrap').innerHTML = `<div class="muted">لا توجد بيانات لهذا الباركود: ${data.barcode || '-'}</div>`;
+  if (!sources.length && !summary.count && consumerPrice == null) {
+    $('resultWrap').innerHTML = `
+      <div class="empty-state empty-state-warn">
+        <div class="empty-state-icon" aria-hidden="true">?</div>
+        <p class="empty-state-title">لا توجد بيانات</p>
+        <p class="empty-state-text">الباركود <strong dir="ltr">${esc(data.barcode || '-')}</strong> غير مسجّل — نفّذ المزامنة من تطبيق الإدارة</p>
+      </div>`;
     return;
   }
 
-  const cheapest = sources.length
-    ? sources.reduce(
-        (best, s) => (!best || Number(s.price) < Number(best.price) ? s : best),
-        null,
-      )
-    : null;
+  const statsHtml = summary.count
+    ? `
+      <div class="stats-grid">
+        <div class="stat-box">
+          <span class="stat-label">حركات الشراء</span>
+          <strong class="stat-value">${esc(fmtQty(summary.count))}</strong>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">إجمالي الكمية</span>
+          <strong class="stat-value">${esc(fmtQty(summary.totalQty))}</strong>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">متوسط السعر</span>
+          <strong class="stat-value">${summary.avgPrice != null ? esc(fmtMoney(summary.avgPrice)) : '—'}</strong>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">الموردون</span>
+          <strong class="stat-value">${esc(fmtQty(summary.supplierCount))}</strong>
+        </div>
+      </div>`
+    : '';
 
-  const bySource = new Map();
-  for (const s of sources) {
-    const key = s.source || '-';
-    if (!bySource.has(key)) bySource.set(key, []);
-    bySource.get(key).push(s);
-  }
-
-  const blocks = [...bySource.entries()].map(([sourceName, rows]) => {
-    rows.sort((a, b) => {
-      const ka = sortKeyForSourceDate(a.source_date);
-      const kb = sortKeyForSourceDate(b.source_date);
-      if (ka !== kb) return kb.localeCompare(ka);
-      return Number(b.price || 0) - Number(a.price || 0);
-    });
-    return { sourceName, rows };
-  });
-
-  blocks.sort(
-    (a, b) => Math.min(...a.rows.map((r) => Number(r.price || 0))) - Math.min(...b.rows.map((r) => Number(r.price || 0))),
-  );
-
-  const consumerHtml =
+  const priceHtml =
     consumerPrice != null
-      ? `<div class="consumer-price-card">
-          <div class="consumer-price-label">سعر المستهلك الحالي</div>
-          <div class="consumer-price-value">${consumerPrice.toFixed(3).replace(/\.?0+$/, '')}</div>
-        </div>`
-      : '';
+      ? `
+      <section class="price-hero" aria-label="سعر المستهلك">
+        <div class="price-hero-label">سعر المستهلك الحالي</div>
+        <div class="price-hero-value">${esc(fmtMoney(consumerPrice))}</div>
+        ${
+          summary.latest
+            ? `<div class="price-hero-note">آخر شراء: ${esc(fmtDateDisplay(summary.latest.date))} · ${esc(summary.latest.supplier || '—')}</div>`
+            : ''
+        }
+      </section>`
+      : `<div class="price-hero price-hero-missing">
+          <div class="price-hero-label">سعر المستهلك</div>
+          <div class="price-hero-value price-hero-value-muted">غير متوفر</div>
+        </div>`;
 
-  const movementsHtml = movements.length
-    ? `<section class="movements-card">
-        <h3 class="movements-title">حركة المشتريات</h3>
-        <div class="movements-table-wrap">
+  const movementsHtml = summary.count
+    ? `
+      <section class="movements-section">
+        <header class="section-head">
+          <div>
+            <h3 class="section-title">حركة المشتريات</h3>
+            <p class="section-sub">${esc(fmtQty(summary.count))} حركة · إجمالي ${esc(fmtMoney(summary.totalValue))}</p>
+          </div>
+        </header>
+        <div class="movements-list">
+          ${summary.rows.map((m, i) => renderMovementRow(m, i)).join('')}
+        </div>
+        <div class="movements-table-desktop">
           <table class="movements-table">
             <thead>
               <tr>
@@ -364,60 +512,43 @@ function renderProduct(data) {
               </tr>
             </thead>
             <tbody>
-              ${movements
+              ${summary.rows
                 .map(
-                  (m) => `<tr>
-                    <td>${m.date ? formatSourceDateClient(m.date) : '—'}</td>
-                    <td>${m.supplier || '—'}</td>
-                    <td>${m.invoice || '—'}</td>
-                    <td>${Number(m.quantity || 0)}</td>
-                    <td>${Number(m.unit_price || 0).toFixed(3).replace(/\.?0+$/, '')}</td>
-                    <td>${Number(m.total_price || 0).toFixed(3).replace(/\.?0+$/, '')}</td>
-                  </tr>`,
+                  (m) => {
+                    const qty = Number(m.quantity || 0);
+                    const unit = Number(m.unit_price || 0);
+                    const total = Number(m.total_price || 0) || qty * unit;
+                    return `<tr>
+                      <td>${esc(fmtDateDisplay(m.date))}</td>
+                      <td>${esc(m.supplier || '—')}</td>
+                      <td dir="ltr">${esc(m.invoice || '—')}</td>
+                      <td>${esc(fmtQty(qty))}</td>
+                      <td>${esc(fmtMoney(unit))}</td>
+                      <td><strong>${esc(fmtMoney(total))}</strong></td>
+                    </tr>`;
+                  },
                 )
                 .join('')}
             </tbody>
           </table>
         </div>
       </section>`
-    : '';
+    : `<div class="info-banner">لا توجد حركات مشتريات مسجّلة لهذا المنتج بعد.</div>`;
 
-  const sourcesHtml = blocks.length
-    ? blocks
-        .map(({ sourceName, rows }) => {
-          const rowsHtml = rows
-            .map((s) => {
-              const fields = s.fields || {};
-              const details = Object.keys(fields).length
-                ? Object.entries(fields).map(([k, v]) => `<span class="field-pill">${k}: ${String(v)}</span>`).join('')
-                : '<span class="muted">لا توجد تفاصيل إضافية</span>';
-              const dateLabel = s.source_date
-                ? formatSourceDateClient(s.source_date)
-                : 'بدون تاريخ';
-              return `<div class="source-price-block">
-              <div class="source-price-line"><span class="source-date-tag">${dateLabel}</span><span class="source-price-val">${Number(s.price || 0).toFixed(2)}</span></div>
-              <div class="field-row">${details}</div>
-            </div>`;
-            })
-            .join('');
-          return `<div class="source-card">
-          <div class="source-group-title">${sourceName}</div>
-          ${rowsHtml}
-        </div>`;
-        })
-        .join('')
-    : '';
-
-  const html = `
-    <div class="product-head">
-      <div><b>${data.name || 'بدون اسم'}</b><div class="muted">الباركود: ${data.barcode || '-'}</div></div>
-      ${cheapest ? `<div class="price-badge">الأرخص: ${Number(cheapest.price || 0).toFixed(2)}</div>` : ''}
-    </div>
-    ${consumerHtml}
-    ${movementsHtml}
-    ${sourcesHtml}
-  `;
-  $('resultWrap').innerHTML = html;
+  $('resultWrap').innerHTML = `
+    <article class="product-sheet">
+      <header class="product-hero">
+        <div class="product-hero-main">
+          <p class="product-kicker">مادة</p>
+          <h3 class="product-name">${esc(data.name || 'بدون اسم')}</h3>
+          <div class="product-barcode" dir="ltr">${esc(data.barcode || '-')}</div>
+        </div>
+      </header>
+      ${priceHtml}
+      ${statsHtml}
+      ${movementsHtml}
+      ${renderLegacySources(sources)}
+    </article>`;
 }
 
 async function searchProduct(barcodeRaw) {
@@ -427,7 +558,12 @@ async function searchProduct(barcodeRaw) {
   try {
     const res = await fetch(`${getBackendUrl()}/product/${encodeURIComponent(barcode)}`);
     if (res.status === 404) {
-      $('resultWrap').innerHTML = `<div class="error">لا يوجد منتج مسجّل لهذا الباركود: ${barcode}</div>`;
+      $('resultWrap').innerHTML = `
+        <div class="empty-state empty-state-warn">
+          <div class="empty-state-icon" aria-hidden="true">✕</div>
+          <p class="empty-state-title">المنتج غير موجود</p>
+          <p class="empty-state-text">الباركود <strong dir="ltr">${esc(barcode)}</strong> غير مسجّل في النظام</p>
+        </div>`;
       setStatus('المنتج غير موجود.', 'warn');
       return;
     }
@@ -436,7 +572,12 @@ async function searchProduct(barcodeRaw) {
     renderProduct(body);
     setStatus('تم تحميل المنتج بنجاح.', 'ok');
   } catch (e) {
-    $('resultWrap').innerHTML = `<div class="error">تعذر الاتصال بالسيرفر.<br/>${e.message}</div>`;
+    $('resultWrap').innerHTML = `
+      <div class="empty-state empty-state-error">
+        <div class="empty-state-icon" aria-hidden="true">!</div>
+        <p class="empty-state-title">تعذر الاتصال</p>
+        <p class="empty-state-text">${esc(e.message)}</p>
+      </div>`;
     setStatus('فشل الاتصال بالسيرفر.', 'error');
   }
 }
