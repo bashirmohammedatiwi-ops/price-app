@@ -9,20 +9,28 @@ services:
       - DATABASE_PATH=/data/prices.sqlite
       - BODY_LIMIT=25mb
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     volumes:
       - backend_data:/data
+    restart: unless-stopped
+  admin-web:
+    build:
+      context: ./web/admin
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:5001:8080"
+    depends_on:
+      - backend
     restart: unless-stopped
   client-web:
     build:
       context: ./web/client
       dockerfile: Dockerfile
     ports:
-      - "5002:8080"
+      - "127.0.0.1:5002:8080"
     depends_on:
       - backend
     restart: unless-stopped
 
 volumes:
   backend_data:
-
