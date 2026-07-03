@@ -1,5 +1,5 @@
 const { z } = require('zod');
-const { pricingFromSyncItem, resolveStoredPricing } = require('../lib/posPricing');
+const { pricingFromSyncItem } = require('../lib/posPricing');
 
 function normalizeBarcode(value) {
   if (value === null || value === undefined) return '';
@@ -21,13 +21,6 @@ function createPosSyncService({ db, productRepository }) {
     offerName: z.string().optional().nullable(),
   });
 
-  const selectExistingStmt = db.prepare(`
-    SELECT original_price, final_price, discount_percent, discount_value,
-           discount_type, offer_name, consumer_price
-    FROM products
-    WHERE barcode = @barcode
-  `);
-
   const upsertStmt = db.prepare(`
     INSERT INTO products (
       barcode, name, original_price, final_price, discount_percent,
@@ -40,26 +33,15 @@ function createPosSyncService({ db, productRepository }) {
     )
     ON CONFLICT(barcode) DO UPDATE SET
       name = COALESCE(products.name, excluded.name),
-      original_price = CASE
-        WHEN excluded.original_price > 0 THEN excluded.original_price
-        ELSE products.original_price
-      END,
-      final_price = CASE
-        WHEN excluded.final_price > 0 THEN excluded.final_price
-        WHEN products.final_price > 0 THEN products.final_price
-        ELSE excluded.final_price
-      END,
-      discount_percent = COALESCE(excluded.discount_percent, products.discount_percent),
-      discount_value = COALESCE(excluded.discount_value, products.discount_value),
-      discount_type = COALESCE(excluded.discount_type, products.discount_type),
-      offer_name = COALESCE(excluded.offer_name, products.offer_name),
+      original_price = excluded.original_price,
+      final_price = excluded.final_price,
+      discount_percent = excluded.discount_percent,
+      discount_value = excluded.discount_value,
+      discount_type = excluded.discount_type,
+      offer_name = excluded.offer_name,
       pos_stock = excluded.pos_stock,
       pos_synced_at = excluded.pos_synced_at,
-      consumer_price = CASE
-        WHEN excluded.final_price > 0 THEN excluded.final_price
-        WHEN excluded.consumer_price > 0 THEN excluded.consumer_price
-        ELSE products.consumer_price
-      END,
+      consumer_price = excluded.consumer_price,
       updated_at = strftime('%Y-%m-%d %H:%M:%f','now')
   `);
 
@@ -85,27 +67,19 @@ function createPosSyncService({ db, productRepository }) {
         const barcode = normalizeBarcode(parsed.data.barcode);
         if (!barcode) continue;
 
-        let pricing = pricingFromSyncItem({
+        const rawOfferName =
+          parsed.data.offerName != null && String(parsed.data.offerName).trim()
+            ? String(parsed.data.offerName).trim()
+            : null;
+
+        const pricing = pricingFromSyncItem({
           originalPrice: parsed.data.originalPrice,
           price: parsed.data.price,
           discountPercent: parsed.data.discountPercent,
           discountValue: parsed.data.discountValue,
           discountType: parsed.data.discountType,
-          offerName: parsed.data.offerName,
+          offerName: rawOfferName,
         });
-
-        const existing = selectExistingStmt.get({ barcode });
-        if (existing) {
-          pricing = resolveStoredPricing({
-            original_price: pricing.originalPrice || existing.original_price,
-            final_price: pricing.finalPrice || existing.final_price || existing.consumer_price,
-            consumer_price: pricing.finalPrice || existing.consumer_price,
-            discount_percent: pricing.discountPercent ?? existing.discount_percent,
-            discount_value: pricing.discountValue ?? existing.discount_value,
-            discount_type: pricing.discountType ?? existing.discount_type,
-            offer_name: pricing.offerName || existing.offer_name,
-          });
-        }
 
         const posName =
           parsed.data.name != null && String(parsed.data.name).trim()
@@ -120,10 +94,7 @@ function createPosSyncService({ db, productRepository }) {
           discount_percent: pricing.discountPercent,
           discount_value: pricing.discountValue,
           discount_type: pricing.discountType,
-          offer_name:
-            parsed.data.offerName != null && String(parsed.data.offerName).trim()
-              ? String(parsed.data.offerName).trim()
-              : pricing.offerName,
+          offer_name: pricing.offerName || rawOfferName,
           pos_stock: Math.max(0, Math.round(Number(parsed.data.stock) || 0)),
           pos_synced_at: now,
           consumer_price: pricing.finalPrice,
