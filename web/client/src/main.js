@@ -317,7 +317,6 @@ function summarizeMovements(movements) {
     if (m.supplier) suppliers.add(String(m.supplier).trim());
   }
 
-  const avgPrice = totalQty > 0 ? totalValue / totalQty : null;
   const latest = rows[0] || null;
 
   return {
@@ -325,7 +324,6 @@ function summarizeMovements(movements) {
     count: rows.length,
     totalQty,
     totalValue,
-    avgPrice,
     latest,
     supplierCount: suppliers.size,
   };
@@ -458,10 +456,6 @@ function renderProduct(data) {
         <div class="stat-box">
           <span class="stat-label">إجمالي الكمية</span>
           <strong class="stat-value">${esc(fmtQty(summary.totalQty))}</strong>
-        </div>
-        <div class="stat-box">
-          <span class="stat-label">متوسط السعر</span>
-          <strong class="stat-value">${summary.avgPrice != null ? esc(fmtMoney(summary.avgPrice)) : '—'}</strong>
         </div>
         <div class="stat-box">
           <span class="stat-label">الموردون</span>
