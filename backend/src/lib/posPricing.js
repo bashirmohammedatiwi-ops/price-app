@@ -4,6 +4,14 @@ function round1(n) {
   return Math.round(Number(n) * 10) / 10;
 }
 
+function parseDiscountPercentFromOfferName(name) {
+  if (!name) return null;
+  const m = String(name).match(/(\d+(?:\.\d+)?)\s*%/);
+  if (!m) return null;
+  const pct = Number(m[1]);
+  return Number.isFinite(pct) && pct > 0 && pct < 100 ? round1(pct) : null;
+}
+
 function positivePrice(n) {
   const v = Math.round(Number(n) || 0);
   return v > 0 ? v : null;
@@ -50,6 +58,13 @@ function finalizePricing({
     pct = round1(dVal);
   }
 
+  if ((pct == null || pct <= 0) && dVal == null && offerName) {
+    const parsed = parseDiscountPercentFromOfferName(offerName);
+    if (parsed != null) {
+      pct = parsed;
+    }
+  }
+
   if ((original == null || original <= 0) && final != null && pct != null && pct > 0) {
     original = deriveOriginalFromFinal(final, pct, dVal, dType);
   }
@@ -59,6 +74,10 @@ function finalizePricing({
   }
 
   if (final == null && original != null && pct != null && pct > 0 && pct < 100) {
+    final = Math.round(original * (1 - pct / 100));
+  }
+
+  if (pct != null && pct > 0 && pct < 100 && original != null && final != null && final >= original) {
     final = Math.round(original * (1 - pct / 100));
   }
 
@@ -81,8 +100,16 @@ function finalizePricing({
 function computePricing(row) {
   const original = Math.round(Number(row.originalPrice) || 0);
   const storedFinal = Math.round(Number(row.storedFinalPrice ?? row.price) || 0);
-  const discountValue = row.discountValue != null ? Number(row.discountValue) : null;
-  const discountType = row.discountType != null ? Number(row.discountType) : 0;
+  let discountValue = row.discountValue != null ? Number(row.discountValue) : null;
+  let discountType = row.discountType != null ? Number(row.discountType) : 0;
+
+  if ((discountValue == null || discountValue <= 0) && row.offerName) {
+    const parsed = parseDiscountPercentFromOfferName(row.offerName);
+    if (parsed != null) {
+      discountValue = parsed;
+      discountType = 0;
+    }
+  }
 
   if (discountValue != null && discountValue > 0) {
     let orig = original;
@@ -205,4 +232,5 @@ module.exports = {
   finalizePricing,
   recomputeStoredPricingRows,
   round1,
+  parseDiscountPercentFromOfferName,
 };
