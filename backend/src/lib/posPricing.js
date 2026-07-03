@@ -134,6 +134,19 @@ function pricingFromSyncItem(item) {
 }
 
 function resolveStoredPricing(row) {
+  const hasPosSync = row.pos_synced_at != null && String(row.pos_synced_at).trim() !== '';
+  if (!hasPosSync) {
+    return {
+      originalPrice: null,
+      finalPrice: null,
+      discountPercent: null,
+      discountValue: null,
+      discountType: null,
+      hasOffer: false,
+      offerName: null,
+    };
+  }
+
   return finalizePricing({
     originalPrice: row.original_price,
     finalPrice: row.final_price ?? row.consumer_price,
@@ -147,13 +160,9 @@ function resolveStoredPricing(row) {
 function recomputeStoredPricingRows(db) {
   const rows = db.prepare(`
     SELECT id, original_price, final_price, consumer_price, discount_percent,
-           discount_value, discount_type, offer_name
+           discount_value, discount_type, offer_name, pos_synced_at
     FROM products
-    WHERE (final_price IS NOT NULL AND final_price > 0)
-       OR (consumer_price IS NOT NULL AND consumer_price > 0)
-       OR (original_price IS NOT NULL AND original_price > 0)
-       OR (discount_percent IS NOT NULL AND discount_percent > 0)
-       OR (discount_value IS NOT NULL AND discount_value > 0)
+    WHERE pos_synced_at IS NOT NULL AND TRIM(pos_synced_at) <> ''
   `).all();
 
   const update = db.prepare(`

@@ -30,11 +30,21 @@ function syncRoutes() {
   const posSyncService = createPosSyncService({ db, productRepository });
 
   router.get('/sync/health', (_req, res) => {
+    const row = db.prepare(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN pos_synced_at IS NOT NULL AND TRIM(pos_synced_at) <> '' THEN 1 ELSE 0 END) AS posSynced,
+        MAX(pos_synced_at) AS lastPosSyncAt
+      FROM products
+    `).get();
     res.json({
       ok: true,
       service: 'price-sync',
       pricingSource: 'pos',
       detailsSource: 'edari',
+      productsTotal: Number(row?.total || 0),
+      productsPosSynced: Number(row?.posSynced || 0),
+      lastPosSyncAt: row?.lastPosSyncAt || null,
     });
   });
 

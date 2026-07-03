@@ -406,6 +406,10 @@ function fmtPercent(value) {
 }
 
 function resolveDisplayPricing(data) {
+  if (!data.pos_synced_at) {
+    return { originalPrice: null, finalPrice: null, discountPercent: null, hasOffer: false };
+  }
+
   let originalPrice =
     data.original_price != null && Number.isFinite(Number(data.original_price)) && Number(data.original_price) > 0
       ? Number(data.original_price)
@@ -494,9 +498,11 @@ function renderProduct(data) {
   const priceHtml =
     originalPrice != null || finalPrice != null || stockBalance != null
       ? `
-      ${!data.pos_synced_at && finalPrice != null ? `
-      <div class="price-sync-hint" role="status">
-        الأسعار من POS — نفّذ مزامنة POS إذا كانت نسبة التخفيض أو السعر الأصلي ناقصة
+      ${!data.pos_synced_at ? `
+      <div class="price-sync-hint price-sync-hint-warn" role="alert">
+        <strong>أسعار POS غير متوفرة</strong> — لم تُزامَن أسعار نقطة البيع بعد.
+        شغّل <strong>pos-sync-desktop</strong> على العنوان:
+        <span dir="ltr">https://demaalhayaadelivery.online/price-api</span>
       </div>` : ''}
       <section class="price-hero-row price-hero-row-triple" aria-label="الأسعار من POS">
         <div class="price-hero-cell${originalPrice == null ? ' price-hero-cell-muted' : ''}">

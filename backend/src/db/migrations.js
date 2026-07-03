@@ -70,6 +70,16 @@ function migrateProductsPosPricing(db) {
 
 function migrateRecomputePosPricing(db) {
   const { recomputeStoredPricingRows } = require('../lib/posPricing');
+  db.prepare(`
+    UPDATE products
+    SET original_price = NULL,
+        final_price = NULL,
+        discount_percent = NULL,
+        discount_value = NULL,
+        discount_type = NULL,
+        offer_name = NULL
+    WHERE pos_synced_at IS NULL OR TRIM(pos_synced_at) = ''
+  `).run();
   recomputeStoredPricingRows(db);
 }
 

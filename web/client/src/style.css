@@ -534,6 +534,17 @@ button.primary {
   text-align: right;
 }
 
+.price-sync-hint-warn {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
+.price-sync-hint-warn strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
 .price-hero-row-triple {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
