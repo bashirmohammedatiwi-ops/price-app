@@ -405,24 +405,39 @@ function fmtPercent(value) {
   return n % 1 === 0 ? `${n}٪` : `${n.toFixed(1)}٪`;
 }
 
-function renderProduct(data) {
-  const sources = Array.isArray(data.sources) ? data.sources.slice() : [];
-  const movements = Array.isArray(data.movements) ? data.movements.slice() : [];
-  const originalPrice =
+function resolveDisplayPricing(data) {
+  let originalPrice =
     data.original_price != null && Number.isFinite(Number(data.original_price))
       ? Number(data.original_price)
       : null;
-  const finalPrice =
+  let finalPrice =
     data.final_price != null && Number.isFinite(Number(data.final_price))
       ? Number(data.final_price)
       : data.consumer_price != null && Number.isFinite(Number(data.consumer_price))
         ? Number(data.consumer_price)
         : null;
-  const discountPercent =
+  let discountPercent =
     data.discount_percent != null && Number.isFinite(Number(data.discount_percent))
       ? Number(data.discount_percent)
       : null;
+
+  if ((discountPercent == null || discountPercent <= 0) && data.discount_value != null && Number(data.discount_value) > 0 && Number(data.discount_type) === 0) {
+    discountPercent = Number(data.discount_value);
+  }
+
+  if ((discountPercent == null || discountPercent <= 0) && originalPrice != null && originalPrice > 0 && finalPrice != null && finalPrice > 0 && finalPrice < originalPrice) {
+    discountPercent = Math.round((1 - finalPrice / originalPrice) * 1000) / 10;
+  }
+
   const hasOffer = Boolean(data.has_offer) || (discountPercent != null && discountPercent > 0);
+
+  return { originalPrice, finalPrice, discountPercent, hasOffer };
+}
+
+function renderProduct(data) {
+  const sources = Array.isArray(data.sources) ? data.sources.slice() : [];
+  const movements = Array.isArray(data.movements) ? data.movements.slice() : [];
+  const { originalPrice, finalPrice, discountPercent, hasOffer } = resolveDisplayPricing(data);
   const stockBalance =
     data.stock_balance != null && Number.isFinite(Number(data.stock_balance))
       ? Number(data.stock_balance)

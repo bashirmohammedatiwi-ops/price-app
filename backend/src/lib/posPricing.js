@@ -39,12 +39,16 @@ function computePricing(row) {
 }
 
 function pricingFromSyncItem(item) {
-  if (item.discountValue != null || item.discountType != null) {
+  const discountValueRaw = item.discountValue != null ? Number(item.discountValue) : null;
+  const discountType = item.discountType != null ? Number(item.discountType) : 0;
+
+  if (discountValueRaw != null && discountValueRaw > 0) {
     return computePricing({
       originalPrice: item.originalPrice,
       storedFinalPrice: item.price,
-      discountValue: item.discountValue,
-      discountType: item.discountType,
+      discountValue: discountValueRaw,
+      discountType,
+      offerName: item.offerName,
     });
   }
 
@@ -59,14 +63,56 @@ function pricingFromSyncItem(item) {
     discountPercent = round1((1 - price / original) * 100);
   }
 
+  const hasOffer = discountPercent != null && discountPercent > 0;
+
   return {
     originalPrice: original,
-    finalPrice: price > 0 ? price : original,
-    discountPercent,
-    discountValue: discountPercent != null ? discountPercent : null,
-    discountType: discountPercent != null ? 0 : null,
-    hasOffer: discountPercent != null && discountPercent > 0,
+    finalPrice: hasOffer ? price : (price > 0 ? price : original),
+    discountPercent: hasOffer ? discountPercent : null,
+    discountValue: hasOffer ? discountPercent : null,
+    discountType: hasOffer ? 0 : null,
+    hasOffer,
   };
 }
 
-module.exports = { computePricing, pricingFromSyncItem, round1 };
+/** عند القراءة من DB — استخدم discount_value/type أو احسب من السعرين */
+function resolveStoredPricing(row) {
+  const original = row.original_price != null && Number.isFinite(Number(row.original_price))
+    ? Math.round(Number(row.original_price))
+    : null;
+  let finalPrice = row.final_price != null && Number.isFinite(Number(row.final_price))
+    ? Math.round(Number(row.final_price))
+    : null;
+  if (finalPrice == null && row.consumer_price != null && Number.isFinite(Number(row.consumer_price))) {
+    finalPrice = Math.round(Number(row.consumer_price));
+  }
+
+  let discountPercent = row.discount_percent != null && Number.isFinite(Number(row.discount_percent))
+    ? round1(Number(row.discount_percent))
+    : null;
+  const discountValue = row.discount_value != null && Number.isFinite(Number(row.discount_value))
+    ? Number(row.discount_value)
+    : null;
+  const discountType = row.discount_type != null ? Number(row.discount_type) : null;
+
+  if ((discountPercent == null || discountPercent <= 0) && discountValue != null && discountValue > 0 && discountType === 0) {
+    discountPercent = round1(discountValue);
+  }
+
+  if ((discountPercent == null || discountPercent <= 0) && original != null && original > 0 && finalPrice != null && finalPrice > 0 && finalPrice < original) {
+    discountPercent = round1((1 - finalPrice / original) * 100);
+  }
+
+  const hasOffer = discountPercent != null && discountPercent > 0;
+
+  return {
+    originalPrice: original,
+    finalPrice: finalPrice ?? original,
+    discountPercent: hasOffer ? discountPercent : null,
+    discountValue: hasOffer ? (discountType === 0 ? discountValue ?? discountPercent : discountValue) : null,
+    discountType: hasOffer ? (discountType ?? 0) : null,
+    hasOffer,
+  };
+}
+
+module.exports = { computePricing, pricingFromSyncItem, resolveStoredPricing, round1 };

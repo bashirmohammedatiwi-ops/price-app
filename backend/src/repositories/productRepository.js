@@ -1,3 +1,5 @@
+const { resolveStoredPricing } = require('../lib/posPricing');
+
 function createProductRepository(db) {
   const upsertStmt = db.prepare(`
     INSERT INTO products (barcode, name, created_at, updated_at)
@@ -68,31 +70,21 @@ function createProductRepository(db) {
     const rows = sourceStmt.all({ product_id: productRow.id });
     const movements = movementStmt.all({ product_id: productRow.id });
 
-    const num = (v) =>
-      v != null && Number.isFinite(Number(v)) ? Number(v) : null;
-
-    const originalPrice = num(productRow.original_price);
-    const finalPrice = num(productRow.final_price);
-    const discountPercent = num(productRow.discount_percent);
-    const hasOffer = discountPercent != null && discountPercent > 0;
+    const pricing = resolveStoredPricing(productRow);
 
     const product = {
       barcode: productRow.barcode,
       name: productRow.name,
-      original_price: originalPrice,
-      final_price: finalPrice ?? num(productRow.consumer_price),
-      discount_percent: discountPercent,
-      discount_value: num(productRow.discount_value),
-      discount_type: productRow.discount_type != null ? Number(productRow.discount_type) : null,
+      original_price: pricing.originalPrice,
+      final_price: pricing.finalPrice,
+      discount_percent: pricing.discountPercent,
+      discount_value: pricing.discountValue,
+      discount_type: pricing.discountType,
       offer_name: productRow.offer_name || null,
       pos_stock: productRow.pos_stock != null ? Number(productRow.pos_stock) : null,
       pos_synced_at: productRow.pos_synced_at || null,
-      has_offer: hasOffer,
-      consumer_price:
-        finalPrice ??
-        (productRow.consumer_price != null && Number.isFinite(Number(productRow.consumer_price))
-          ? Number(productRow.consumer_price)
-          : null),
+      has_offer: pricing.hasOffer,
+      consumer_price: pricing.finalPrice,
       stock_balance:
         productRow.stock_balance != null && Number.isFinite(Number(productRow.stock_balance))
           ? Number(productRow.stock_balance)
@@ -135,4 +127,3 @@ function createProductRepository(db) {
 }
 
 module.exports = { createProductRepository };
-
