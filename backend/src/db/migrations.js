@@ -53,6 +53,21 @@ function migrateProductsStockBalance(db) {
   }
 }
 
+function migrateProductsPosPricing(db) {
+  const names = db.prepare('PRAGMA table_info(products)').all().map((c) => c.name);
+  const add = (col, type) => {
+    if (!names.includes(col)) db.exec(`ALTER TABLE products ADD COLUMN ${col} ${type}`);
+  };
+  add('original_price', 'REAL');
+  add('final_price', 'REAL');
+  add('discount_percent', 'REAL');
+  add('discount_value', 'REAL');
+  add('discount_type', 'INTEGER');
+  add('offer_name', 'TEXT');
+  add('pos_stock', 'INTEGER');
+  add('pos_synced_at', 'TEXT');
+}
+
 function migrate(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS products (
@@ -103,6 +118,7 @@ function migrate(db) {
 
   migrateProductsConsumerPrice(db);
   migrateProductsStockBalance(db);
+  migrateProductsPosPricing(db);
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS purchase_movements (

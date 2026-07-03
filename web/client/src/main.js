@@ -94,7 +94,7 @@ app.innerHTML = `
     <section class="card result-card">
       <div class="result-card-head">
         <h2>بيانات المنتج</h2>
-        <p class="result-card-sub">سعر المستهلك وحركة المشتريات من Edari</p>
+        <p class="result-card-sub">الأسعار من POS — التفاصيل والمشتريات من Edari</p>
       </div>
       <div id="resultWrap" class="result-wrap">
         <div class="empty-state">
@@ -336,12 +336,14 @@ function renderMovementRow(m, index) {
   const unit = Number(m.unit_price || 0);
   const total = Number(m.total_price || 0) || qty * unit;
   const isLatest = index === 0;
+  const isAggregate = String(m.supplier || '').includes('بدون تفاصيل فواتير');
 
   return `
-    <article class="movement-item${isLatest ? ' movement-item-latest' : ''}">
+    <article class="movement-item${isLatest ? ' movement-item-latest' : ''}${isAggregate ? ' movement-item-aggregate' : ''}">
       <div class="movement-item-top">
         <time class="movement-date" datetime="${esc(m.date || '')}">${esc(fmtDateDisplay(m.date))}</time>
         ${isLatest ? '<span class="movement-badge">آخر شراء</span>' : ''}
+        ${isAggregate ? '<span class="movement-badge movement-badge-aggregate">إجمالي مشتريات</span>' : ''}
       </div>
       <div class="movement-supplier">${esc(m.supplier || '—')}</div>
       <div class="movement-meta">
@@ -402,20 +404,41 @@ function renderLegacySources(sources) {
     </details>`;
 }
 
+function fmtPercent(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '—';
+  return n % 1 === 0 ? `${n}٪` : `${n.toFixed(1)}٪`;
+}
+
 function renderProduct(data) {
   const sources = Array.isArray(data.sources) ? data.sources.slice() : [];
   const movements = Array.isArray(data.movements) ? data.movements.slice() : [];
-  const consumerPrice =
-    data.consumer_price != null && Number.isFinite(Number(data.consumer_price))
-      ? Number(data.consumer_price)
+  const originalPrice =
+    data.original_price != null && Number.isFinite(Number(data.original_price))
+      ? Number(data.original_price)
       : null;
+  const finalPrice =
+    data.final_price != null && Number.isFinite(Number(data.final_price))
+      ? Number(data.final_price)
+      : data.consumer_price != null && Number.isFinite(Number(data.consumer_price))
+        ? Number(data.consumer_price)
+        : null;
+  const discountPercent =
+    data.discount_percent != null && Number.isFinite(Number(data.discount_percent))
+      ? Number(data.discount_percent)
+      : null;
+  const hasOffer = Boolean(data.has_offer) || (discountPercent != null && discountPercent > 0);
   const stockBalance =
     data.stock_balance != null && Number.isFinite(Number(data.stock_balance))
       ? Number(data.stock_balance)
       : null;
+  const posStock =
+    data.pos_stock != null && Number.isFinite(Number(data.pos_stock))
+      ? Number(data.pos_stock)
+      : null;
   const summary = summarizeMovements(movements);
 
-  if (!sources.length && !summary.count && consumerPrice == null && stockBalance == null) {
+  if (!sources.length && !summary.count && finalPrice == null && stockBalance == null && originalPrice == null) {
     $('resultWrap').innerHTML = `
       <div class="empty-state empty-state-warn">
         <div class="empty-state-icon" aria-hidden="true">?</div>
@@ -448,26 +471,41 @@ function renderProduct(data) {
     : '';
 
   const priceHtml =
-    consumerPrice != null || stockBalance != null
+    originalPrice != null || finalPrice != null || stockBalance != null || posStock != null
       ? `
-      <section class="price-hero-row" aria-label="السعر والرصيد">
-        <div class="price-hero-cell${consumerPrice == null ? ' price-hero-cell-muted' : ''}">
-          <div class="price-hero-label">سعر المستهلك</div>
-          <div class="price-hero-value${consumerPrice == null ? ' price-hero-value-muted' : ''}">${consumerPrice != null ? esc(fmtMoney(consumerPrice)) : '—'}</div>
+      <section class="price-hero-row price-hero-row-triple" aria-label="الأسعار من POS">
+        <div class="price-hero-cell${originalPrice == null ? ' price-hero-cell-muted' : ''}">
+          <div class="price-hero-label">السعر الأصلي</div>
+          <div class="price-hero-value price-hero-value-original${originalPrice == null ? ' price-hero-value-muted' : ''}">${originalPrice != null ? esc(fmtMoney(originalPrice)) : '—'}</div>
         </div>
-        <div class="price-hero-cell price-hero-cell-stock${stockBalance == null ? ' price-hero-cell-muted' : ''}">
-          <div class="price-hero-label">الرصيد النهائي</div>
-          <div class="price-hero-value price-hero-value-stock${stockBalance == null ? ' price-hero-value-muted' : ''}${stockBalance != null && stockBalance <= 0 ? ' price-hero-value-low' : ''}">${stockBalance != null ? esc(fmtQty(stockBalance)) : '—'}</div>
+        <div class="price-hero-cell price-hero-cell-discount${!hasOffer ? ' price-hero-cell-muted' : ''}">
+          <div class="price-hero-label">نسبة التخفيض</div>
+          <div class="price-hero-value price-hero-value-discount${!hasOffer ? ' price-hero-value-muted' : ''}">${hasOffer ? esc(fmtPercent(discountPercent)) : '—'}</div>
+          ${data.offer_name && hasOffer ? `<div class="price-offer-name">${esc(data.offer_name)}</div>` : ''}
+        </div>
+        <div class="price-hero-cell price-hero-cell-final${finalPrice == null ? ' price-hero-cell-muted' : ''}">
+          <div class="price-hero-label">السعر بعد التخفيض</div>
+          <div class="price-hero-value price-hero-value-final${finalPrice == null ? ' price-hero-value-muted' : ''}">${finalPrice != null ? esc(fmtMoney(finalPrice)) : '—'}</div>
         </div>
       </section>
+      <div class="price-hero-row price-hero-row-stock">
+        <div class="price-hero-cell price-hero-cell-stock${posStock == null ? ' price-hero-cell-muted' : ''}">
+          <div class="price-hero-label">مخزون POS</div>
+          <div class="price-hero-value price-hero-value-stock${posStock == null ? ' price-hero-value-muted' : ''}${posStock != null && posStock <= 0 ? ' price-hero-value-low' : ''}">${posStock != null ? esc(fmtQty(posStock)) : '—'}</div>
+        </div>
+        <div class="price-hero-cell price-hero-cell-stock${stockBalance == null ? ' price-hero-cell-muted' : ''}">
+          <div class="price-hero-label">رصيد Edari</div>
+          <div class="price-hero-value price-hero-value-stock${stockBalance == null ? ' price-hero-value-muted' : ''}${stockBalance != null && stockBalance <= 0 ? ' price-hero-value-low' : ''}">${stockBalance != null ? esc(fmtQty(stockBalance)) : '—'}</div>
+        </div>
+      </div>
       ${
         summary.latest
           ? `<div class="price-hero-note">آخر شراء: ${esc(fmtDateDisplay(summary.latest.date))} · ${esc(summary.latest.supplier || '—')}</div>`
           : ''
       }`
       : `<div class="price-hero price-hero-missing">
-          <div class="price-hero-label">سعر المستهلك</div>
-          <div class="price-hero-value price-hero-value-muted">غير متوفر</div>
+          <div class="price-hero-label">الأسعار (POS)</div>
+          <div class="price-hero-value price-hero-value-muted">غير متوفرة — شغّل مزامنة POS</div>
         </div>`;
 
   const movementsHtml = summary.count

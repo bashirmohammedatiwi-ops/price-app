@@ -2,8 +2,10 @@
 
 هذا المشروع يعمل الآن على نفس الدومين الرئيسي عبر امتدادات (paths):
 
-- `https://demaalhayaadelivery.online/price/` تطبيق المستخدم (بحث باركود + ماسح كاميرا)
+- `https://demaalhayaadelivery.online/price/` تطبيق المستخدم (بحث باركود + ماسح كاميرا) — **الأسعار من POS، التفاصيل من Edari**
 - `https://demaalhayaadelivery.online/price-api/health` API الصحة
+- `POST /price-api/sync/inventory/bulk` مزامنة أسعار POS (pos-sync-desktop)
+- `POST /price-api/sync/edari` أسماء، رصيد، حركات مشتريات (Edari Admin)
 
 > **ملاحظة:** رفع البيانات يتم من **تطبيق الإدارة (Edari Admin)** عبر قسم «مزامنة الأسعار» — وليس من لوحة ويب منفصلة.
 

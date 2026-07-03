@@ -23,7 +23,9 @@ function createProductRepository(db) {
 
   function getProductWithSourcesByBarcode({ barcode }) {
     const productRow = db.prepare(`
-      SELECT id, barcode, name, consumer_price, stock_balance
+      SELECT id, barcode, name, consumer_price, stock_balance,
+             original_price, final_price, discount_percent, discount_value,
+             discount_type, offer_name, pos_stock, pos_synced_at
       FROM products
       WHERE barcode = @barcode
     `).get({ barcode });
@@ -66,13 +68,31 @@ function createProductRepository(db) {
     const rows = sourceStmt.all({ product_id: productRow.id });
     const movements = movementStmt.all({ product_id: productRow.id });
 
+    const num = (v) =>
+      v != null && Number.isFinite(Number(v)) ? Number(v) : null;
+
+    const originalPrice = num(productRow.original_price);
+    const finalPrice = num(productRow.final_price);
+    const discountPercent = num(productRow.discount_percent);
+    const hasOffer = discountPercent != null && discountPercent > 0;
+
     const product = {
       barcode: productRow.barcode,
       name: productRow.name,
+      original_price: originalPrice,
+      final_price: finalPrice ?? num(productRow.consumer_price),
+      discount_percent: discountPercent,
+      discount_value: num(productRow.discount_value),
+      discount_type: productRow.discount_type != null ? Number(productRow.discount_type) : null,
+      offer_name: productRow.offer_name || null,
+      pos_stock: productRow.pos_stock != null ? Number(productRow.pos_stock) : null,
+      pos_synced_at: productRow.pos_synced_at || null,
+      has_offer: hasOffer,
       consumer_price:
-        productRow.consumer_price != null && Number.isFinite(Number(productRow.consumer_price))
+        finalPrice ??
+        (productRow.consumer_price != null && Number.isFinite(Number(productRow.consumer_price))
           ? Number(productRow.consumer_price)
-          : null,
+          : null),
       stock_balance:
         productRow.stock_balance != null && Number.isFinite(Number(productRow.stock_balance))
           ? Number(productRow.stock_balance)

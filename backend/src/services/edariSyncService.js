@@ -40,14 +40,6 @@ function createEdariSyncService({ db, productRepository, purchaseMovementReposit
     edari_key: z.string().optional().nullable(),
   });
 
-  const updateConsumerPriceStmt = db.prepare(`
-    UPDATE products
-    SET consumer_price = @consumer_price,
-        name = COALESCE(@name, name),
-        updated_at = strftime('%Y-%m-%d %H:%M:%f','now')
-    WHERE id = @id
-  `);
-
   const updateStockBalanceStmt = db.prepare(`
     UPDATE products
     SET stock_balance = @stock_balance,
@@ -56,6 +48,7 @@ function createEdariSyncService({ db, productRepository, purchaseMovementReposit
     WHERE id = @id
   `);
 
+  /** Edari: names, stock, movements only — prices come from POS sync. */
   function syncPayload({ products = [], movements = [] }) {
     if (!Array.isArray(products)) products = [];
     if (!Array.isArray(movements)) movements = [];
@@ -66,7 +59,6 @@ function createEdariSyncService({ db, productRepository, purchaseMovementReposit
     }
 
     let productsUpserted = 0;
-    let consumerPricesUpdated = 0;
     let stockBalancesUpdated = 0;
     let movementsUpserted = 0;
     const barcodeToId = new Map();
@@ -87,21 +79,11 @@ function createEdariSyncService({ db, productRepository, purchaseMovementReposit
           parsed.data.name != null && String(parsed.data.name).trim()
             ? String(parsed.data.name).trim()
             : null;
-        const consumerPrice = parseNumber(parsed.data.consumer_price, NaN);
         const stockBalance = parseNumber(parsed.data.stock_balance, NaN);
 
         const existing = productRepository.upsertProduct({ barcode, name });
         barcodeToId.set(barcode, existing.id);
         productsUpserted += 1;
-
-        if (Number.isFinite(consumerPrice) && consumerPrice > 0) {
-          updateConsumerPriceStmt.run({
-            id: existing.id,
-            consumer_price: consumerPrice,
-            name,
-          });
-          consumerPricesUpdated += 1;
-        }
 
         if (parsed.data.stock_balance != null && Number.isFinite(stockBalance)) {
           updateStockBalanceStmt.run({
@@ -161,7 +143,7 @@ function createEdariSyncService({ db, productRepository, purchaseMovementReposit
     return {
       ok: true,
       products_upserted: productsUpserted,
-      consumer_prices_updated: consumerPricesUpdated,
+      consumer_prices_updated: 0,
       stock_balances_updated: stockBalancesUpdated,
       movements_upserted: movementsUpserted,
     };
