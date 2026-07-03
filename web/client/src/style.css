@@ -655,6 +655,19 @@ button.primary {
   padding: 14px 16px 0;
 }
 
+.stats-grid-pair {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.price-hero-row-stock-single {
+  grid-template-columns: 1fr;
+  margin-top: 10px;
+}
+
+.price-hero-row-stock-single .price-hero-cell-stock {
+  max-width: none;
+}
+
 .stat-box {
   padding: 12px;
   border-radius: var(--radius-sm);

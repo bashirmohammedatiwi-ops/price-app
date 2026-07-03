@@ -304,7 +304,6 @@ function sortKeyForDate(raw) {
 
 function summarizeMovements(movements) {
   const rows = movements.slice().sort((a, b) => sortKeyForDate(b.date).localeCompare(sortKeyForDate(a.date)));
-  let totalQty = 0;
   let totalValue = 0;
   const suppliers = new Set();
 
@@ -312,7 +311,6 @@ function summarizeMovements(movements) {
     const qty = Number(m.quantity || 0);
     const total = Number(m.total_price || 0);
     const unit = Number(m.unit_price || 0);
-    totalQty += qty;
     totalValue += total > 0 ? total : qty * unit;
     if (m.supplier) suppliers.add(String(m.supplier).trim());
   }
@@ -322,7 +320,6 @@ function summarizeMovements(movements) {
   return {
     rows,
     count: rows.length,
-    totalQty,
     totalValue,
     latest,
     supplierCount: suppliers.size,
@@ -430,10 +427,6 @@ function renderProduct(data) {
     data.stock_balance != null && Number.isFinite(Number(data.stock_balance))
       ? Number(data.stock_balance)
       : null;
-  const posStock =
-    data.pos_stock != null && Number.isFinite(Number(data.pos_stock))
-      ? Number(data.pos_stock)
-      : null;
   const summary = summarizeMovements(movements);
 
   if (!sources.length && !summary.count && finalPrice == null && stockBalance == null && originalPrice == null) {
@@ -448,14 +441,10 @@ function renderProduct(data) {
 
   const statsHtml = summary.count
     ? `
-      <div class="stats-grid">
+      <div class="stats-grid stats-grid-pair">
         <div class="stat-box">
           <span class="stat-label">حركات الشراء</span>
           <strong class="stat-value">${esc(fmtQty(summary.count))}</strong>
-        </div>
-        <div class="stat-box">
-          <span class="stat-label">إجمالي الكمية</span>
-          <strong class="stat-value">${esc(fmtQty(summary.totalQty))}</strong>
         </div>
         <div class="stat-box">
           <span class="stat-label">الموردون</span>
@@ -464,8 +453,18 @@ function renderProduct(data) {
       </div>`
     : '';
 
+  const stockHtml = stockBalance != null
+    ? `
+      <div class="price-hero-row price-hero-row-stock price-hero-row-stock-single">
+        <div class="price-hero-cell price-hero-cell-stock">
+          <div class="price-hero-label">العدد (Edari)</div>
+          <div class="price-hero-value price-hero-value-stock${stockBalance <= 0 ? ' price-hero-value-low' : ''}">${esc(fmtQty(stockBalance))}</div>
+        </div>
+      </div>`
+    : '';
+
   const priceHtml =
-    originalPrice != null || finalPrice != null || stockBalance != null || posStock != null
+    originalPrice != null || finalPrice != null || stockBalance != null
       ? `
       <section class="price-hero-row price-hero-row-triple" aria-label="الأسعار من POS">
         <div class="price-hero-cell${originalPrice == null ? ' price-hero-cell-muted' : ''}">
@@ -482,16 +481,7 @@ function renderProduct(data) {
           <div class="price-hero-value price-hero-value-final${finalPrice == null ? ' price-hero-value-muted' : ''}">${finalPrice != null ? esc(fmtMoney(finalPrice)) : '—'}</div>
         </div>
       </section>
-      <div class="price-hero-row price-hero-row-stock">
-        <div class="price-hero-cell price-hero-cell-stock${posStock == null ? ' price-hero-cell-muted' : ''}">
-          <div class="price-hero-label">مخزون POS</div>
-          <div class="price-hero-value price-hero-value-stock${posStock == null ? ' price-hero-value-muted' : ''}${posStock != null && posStock <= 0 ? ' price-hero-value-low' : ''}">${posStock != null ? esc(fmtQty(posStock)) : '—'}</div>
-        </div>
-        <div class="price-hero-cell price-hero-cell-stock${stockBalance == null ? ' price-hero-cell-muted' : ''}">
-          <div class="price-hero-label">رصيد Edari</div>
-          <div class="price-hero-value price-hero-value-stock${stockBalance == null ? ' price-hero-value-muted' : ''}${stockBalance != null && stockBalance <= 0 ? ' price-hero-value-low' : ''}">${stockBalance != null ? esc(fmtQty(stockBalance)) : '—'}</div>
-        </div>
-      </div>
+      ${stockHtml}
       ${
         summary.latest
           ? `<div class="price-hero-note">آخر شراء: ${esc(fmtDateDisplay(summary.latest.date))} · ${esc(summary.latest.supplier || '—')}</div>`
@@ -508,7 +498,7 @@ function renderProduct(data) {
         <header class="section-head">
           <div>
             <h3 class="section-title">حركة المشتريات</h3>
-            <p class="section-sub">${esc(fmtQty(summary.count))} حركة · إجمالي ${esc(fmtMoney(summary.totalValue))}</p>
+            <p class="section-sub">${esc(fmtQty(summary.count))} حركة · إجمالي قيمة ${esc(fmtMoney(summary.totalValue))}</p>
           </div>
         </header>
         <div class="movements-list">
