@@ -4,6 +4,7 @@ const { createProductRepository } = require('../repositories/productRepository')
 const { createPurchaseMovementRepository } = require('../repositories/purchaseMovementRepository');
 const { createEdariSyncService } = require('../services/edariSyncService');
 const { createPosSyncService } = require('../services/posSyncService');
+const { recomputeStoredPricingRows } = require('../lib/posPricing');
 
 function assertSyncKey(req) {
   const expected = String(process.env.PRICE_SYNC_KEY || '').trim();
@@ -65,6 +66,16 @@ function syncRoutes() {
       const items = Array.isArray(req.body?.items) ? req.body.items : [];
       const result = posSyncService.syncItems(items);
       res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/sync/recompute-pricing', (req, res, next) => {
+    try {
+      assertSyncKey(req);
+      const updated = recomputeStoredPricingRows(db);
+      res.json({ ok: true, updated });
     } catch (err) {
       next(err);
     }

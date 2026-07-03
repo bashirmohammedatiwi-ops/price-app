@@ -68,6 +68,11 @@ function migrateProductsPosPricing(db) {
   add('pos_synced_at', 'TEXT');
 }
 
+function migrateRecomputePosPricing(db) {
+  const { recomputeStoredPricingRows } = require('../lib/posPricing');
+  recomputeStoredPricingRows(db);
+}
+
 function migrate(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS products (
@@ -119,6 +124,7 @@ function migrate(db) {
   migrateProductsConsumerPrice(db);
   migrateProductsStockBalance(db);
   migrateProductsPosPricing(db);
+  migrateRecomputePosPricing(db);
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS purchase_movements (

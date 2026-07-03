@@ -407,29 +407,42 @@ function fmtPercent(value) {
 
 function resolveDisplayPricing(data) {
   let originalPrice =
-    data.original_price != null && Number.isFinite(Number(data.original_price))
+    data.original_price != null && Number.isFinite(Number(data.original_price)) && Number(data.original_price) > 0
       ? Number(data.original_price)
       : null;
   let finalPrice =
-    data.final_price != null && Number.isFinite(Number(data.final_price))
+    data.final_price != null && Number.isFinite(Number(data.final_price)) && Number(data.final_price) > 0
       ? Number(data.final_price)
-      : data.consumer_price != null && Number.isFinite(Number(data.consumer_price))
+      : data.consumer_price != null && Number.isFinite(Number(data.consumer_price)) && Number(data.consumer_price) > 0
         ? Number(data.consumer_price)
         : null;
   let discountPercent =
-    data.discount_percent != null && Number.isFinite(Number(data.discount_percent))
+    data.discount_percent != null && Number.isFinite(Number(data.discount_percent)) && Number(data.discount_percent) > 0
       ? Number(data.discount_percent)
       : null;
 
-  if ((discountPercent == null || discountPercent <= 0) && data.discount_value != null && Number(data.discount_value) > 0 && Number(data.discount_type) === 0) {
-    discountPercent = Number(data.discount_value);
+  const discountValue = data.discount_value != null && Number(data.discount_value) > 0
+    ? Number(data.discount_value)
+    : null;
+  const discountType = data.discount_type != null ? Number(data.discount_type) : 0;
+
+  if ((discountPercent == null || discountPercent <= 0) && discountValue != null && discountType === 0) {
+    discountPercent = discountValue;
+  }
+
+  if ((originalPrice == null || originalPrice <= 0) && finalPrice != null && discountPercent != null && discountPercent > 0 && discountPercent < 100) {
+    originalPrice = Math.round(finalPrice / (1 - discountPercent / 100));
   }
 
   if ((discountPercent == null || discountPercent <= 0) && originalPrice != null && originalPrice > 0 && finalPrice != null && finalPrice > 0 && finalPrice < originalPrice) {
     discountPercent = Math.round((1 - finalPrice / originalPrice) * 1000) / 10;
   }
 
-  const hasOffer = Boolean(data.has_offer) || (discountPercent != null && discountPercent > 0);
+  if (originalPrice == null && finalPrice != null && (discountPercent == null || discountPercent <= 0)) {
+    originalPrice = finalPrice;
+  }
+
+  const hasOffer = Boolean(data.has_offer) || (discountPercent != null && discountPercent > 0 && originalPrice != null && finalPrice != null && finalPrice < originalPrice);
 
   return { originalPrice, finalPrice, discountPercent, hasOffer };
 }
@@ -481,6 +494,10 @@ function renderProduct(data) {
   const priceHtml =
     originalPrice != null || finalPrice != null || stockBalance != null
       ? `
+      ${!data.pos_synced_at && finalPrice != null ? `
+      <div class="price-sync-hint" role="status">
+        الأسعار من POS — نفّذ مزامنة POS إذا كانت نسبة التخفيض أو السعر الأصلي ناقصة
+      </div>` : ''}
       <section class="price-hero-row price-hero-row-triple" aria-label="الأسعار من POS">
         <div class="price-hero-cell${originalPrice == null ? ' price-hero-cell-muted' : ''}">
           <div class="price-hero-label">السعر الأصلي</div>
