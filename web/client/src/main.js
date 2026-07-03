@@ -457,7 +457,7 @@ function renderProduct(data) {
     ? `
       <div class="price-hero-row price-hero-row-stock price-hero-row-stock-single">
         <div class="price-hero-cell price-hero-cell-stock">
-          <div class="price-hero-label">العدد (Edari)</div>
+          <div class="price-hero-label">العدد</div>
           <div class="price-hero-value price-hero-value-stock${stockBalance <= 0 ? ' price-hero-value-low' : ''}">${esc(fmtQty(stockBalance))}</div>
         </div>
       </div>`
