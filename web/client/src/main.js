@@ -424,7 +424,6 @@ function renderPriceHeroBlock(data, pricing) {
           <div class="price-hero-label price-hero-label-final">السعر بعد التخفيض</div>
           <div class="price-hero-value price-hero-value-final">${esc(fmtMoney(finalPrice))}</div>
         </div>
-        ${data.offer_name ? `<div class="price-offer-name">${esc(data.offer_name)}</div>` : ''}
       </section>`;
   }
 

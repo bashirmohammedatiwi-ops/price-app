@@ -12,6 +12,19 @@ function parseDiscountPercentFromOfferName(name) {
   return Number.isFinite(pct) && pct > 0 && pct < 100 ? round1(pct) : null;
 }
 
+/** لا نعرض offer_name إن كان مجرد نسبة أو أحرف تالفة من POS */
+function displayableOfferName(name) {
+  if (!name) return null;
+  const cleaned = String(name)
+    .replace(/[\u0000-\u001F\u007F-\u009F\uFFFD]/g, '')
+    .replace(/[\u200E\u200F\u202A-\u202E]/g, '')
+    .trim();
+  if (!cleaned || cleaned.length < 2) return null;
+  if (/^[%٪\s\d.,+\-]+$/.test(cleaned)) return null;
+  if (/^[%٪]?\s*\d+(\.\d+)?\s*[%٪]?\s*$/.test(cleaned)) return null;
+  return cleaned;
+}
+
 function positivePrice(n) {
   const v = Math.round(Number(n) || 0);
   return v > 0 ? v : null;
@@ -93,7 +106,7 @@ function finalizePricing({
     discountValue: hasOffer ? (dType === 0 ? (dVal ?? pct) : dVal) : null,
     discountType: hasOffer ? dType : null,
     hasOffer,
-    offerName: hasOffer && offerName ? String(offerName).trim() || null : null,
+    offerName: hasOffer ? displayableOfferName(offerName) : null,
   };
 }
 
