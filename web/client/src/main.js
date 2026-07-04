@@ -402,7 +402,49 @@ function renderLegacySources(sources) {
 function fmtPercent(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return '—';
-  return n % 1 === 0 ? `${n}٪` : `${n.toFixed(1)}٪`;
+  return n % 1 === 0 ? String(n) : n.toFixed(1);
+}
+
+function renderPriceHeroBlock(data, pricing) {
+  const { originalPrice, finalPrice, discountPercent, hasOffer } = pricing;
+  const displayPrice = finalPrice ?? originalPrice;
+
+  if (hasOffer && finalPrice != null && originalPrice != null && finalPrice < originalPrice) {
+    const pct = fmtPercent(discountPercent);
+    return `
+      <section class="price-hero-offer" aria-label="الأسعار من POS">
+        <div class="price-hero-offer-top">
+          <span class="price-hero-offer-original">
+            <span class="price-hero-offer-original-label">السعر الأصلي</span>
+            <span class="price-hero-offer-original-val">${esc(fmtMoney(originalPrice))}</span>
+          </span>
+          <span class="price-hero-offer-badge" dir="ltr">-${esc(pct)}%</span>
+        </div>
+        <div class="price-hero-offer-main">
+          <div class="price-hero-label price-hero-label-final">السعر بعد التخفيض</div>
+          <div class="price-hero-value price-hero-value-final">${esc(fmtMoney(finalPrice))}</div>
+        </div>
+        ${data.offer_name ? `<div class="price-offer-name">${esc(data.offer_name)}</div>` : ''}
+      </section>`;
+  }
+
+  if (displayPrice != null) {
+    return `
+      <section class="price-hero-row price-hero-row-single" aria-label="السعر">
+        <div class="price-hero-cell price-hero-cell-single">
+          <div class="price-hero-label">السعر</div>
+          <div class="price-hero-value price-hero-value-single">${esc(fmtMoney(displayPrice))}</div>
+        </div>
+      </section>`;
+  }
+
+  return `
+    <section class="price-hero-row price-hero-row-single" aria-label="السعر">
+      <div class="price-hero-cell price-hero-cell-muted">
+        <div class="price-hero-label">السعر</div>
+        <div class="price-hero-value price-hero-value-muted">—</div>
+      </div>
+    </section>`;
 }
 
 function resolveDisplayPricing(data) {
@@ -504,21 +546,7 @@ function renderProduct(data) {
         شغّل <strong>pos-sync-desktop</strong> على العنوان:
         <span dir="ltr">https://demaalhayaadelivery.online/price-api</span>
       </div>` : ''}
-      <section class="price-hero-row price-hero-row-triple" aria-label="الأسعار من POS">
-        <div class="price-hero-cell${originalPrice == null ? ' price-hero-cell-muted' : ''}">
-          <div class="price-hero-label">السعر الأصلي</div>
-          <div class="price-hero-value price-hero-value-original${originalPrice == null ? ' price-hero-value-muted' : ''}">${originalPrice != null ? esc(fmtMoney(originalPrice)) : '—'}</div>
-        </div>
-        <div class="price-hero-cell price-hero-cell-discount${!hasOffer ? ' price-hero-cell-muted' : ''}">
-          <div class="price-hero-label">نسبة التخفيض</div>
-          <div class="price-hero-value price-hero-value-discount${!hasOffer ? ' price-hero-value-muted' : ''}">${hasOffer ? esc(fmtPercent(discountPercent)) : '—'}</div>
-          ${data.offer_name && hasOffer ? `<div class="price-offer-name">${esc(data.offer_name)}</div>` : ''}
-        </div>
-        <div class="price-hero-cell price-hero-cell-final${finalPrice == null ? ' price-hero-cell-muted' : ''}">
-          <div class="price-hero-label">السعر بعد التخفيض</div>
-          <div class="price-hero-value price-hero-value-final${finalPrice == null ? ' price-hero-value-muted' : ''}">${finalPrice != null ? esc(fmtMoney(finalPrice)) : '—'}</div>
-        </div>
-      </section>
+      ${renderPriceHeroBlock(data, { originalPrice, finalPrice, discountPercent, hasOffer })}
       ${stockHtml}
       ${
         summary.latest
