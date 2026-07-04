@@ -590,17 +590,16 @@ button.primary {
 }
 
 .price-hero-offer-original-label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #a8a29e;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #b91c1c;
 }
 
 .price-hero-offer-original-val {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #94a3b8;
-  text-decoration: line-through;
-  text-decoration-thickness: 2px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #dc2626;
+  letter-spacing: 0.02em;
 }
 
 .price-hero-offer-badge {
