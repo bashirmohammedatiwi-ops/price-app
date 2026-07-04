@@ -90,8 +90,11 @@ function finalizePricing({
     final = Math.round(original * (1 - pct / 100));
   }
 
-  if (pct != null && pct > 0 && pct < 100 && original != null && final != null && final >= original) {
+  // نسبة مئوية (type 0): السعر النهائي = الأصلي × (1 - النسبة/100) — لا نعتمد على price من POS إن اختلف
+  if (pct != null && pct > 0 && pct < 100 && original != null && dType === 0) {
     final = Math.round(original * (1 - pct / 100));
+  } else if (dType !== 0 && dVal != null && dVal > 0 && original != null) {
+    final = Math.max(0, Math.round(original - dVal));
   }
 
   if (final == null && original != null) final = original;

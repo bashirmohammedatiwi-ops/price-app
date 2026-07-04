@@ -487,7 +487,30 @@ function resolveDisplayPricing(data) {
     originalPrice = finalPrice;
   }
 
-  const hasOffer = Boolean(data.has_offer) || (discountPercent != null && discountPercent > 0 && originalPrice != null && finalPrice != null && finalPrice < originalPrice);
+  if (
+    originalPrice != null &&
+    discountPercent != null &&
+    discountPercent > 0 &&
+    discountPercent < 100 &&
+    discountType === 0
+  ) {
+    finalPrice = Math.round(originalPrice * (1 - discountPercent / 100));
+  } else if (
+    originalPrice != null &&
+    discountType !== 0 &&
+    discountValue != null &&
+    discountValue > 0
+  ) {
+    finalPrice = Math.max(0, Math.round(originalPrice - discountValue));
+  }
+
+  const hasOffer =
+    Boolean(data.has_offer) ||
+    (discountPercent != null &&
+      discountPercent > 0 &&
+      originalPrice != null &&
+      finalPrice != null &&
+      finalPrice < originalPrice);
 
   return { originalPrice, finalPrice, discountPercent, hasOffer };
 }
